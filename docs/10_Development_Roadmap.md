@@ -216,7 +216,7 @@ A tested application ready for deployment.
 
 Tasks:
 
-- Deploy backend on Hugging Face Spaces (Docker).
+- Deploy backend on Render (Docker, free).
 - Deploy frontend on Streamlit Community Cloud.
 - Configure environment variables.
 - Configure CORS.

@@ -22,7 +22,7 @@ Streamlit frontend ──HTTP──▶ FastAPI backend ──▶ Supabase Postgr
  (player + chat)              │                    (videos, chunks + embeddings,
                               │                     chat sessions/messages, insights)
                               ├─▶ youtube-transcript-api (transcripts)
-                              ├─▶ all-MiniLM-L6-v2 (local 384-d embeddings, sentence-transformers)
+                              ├─▶ all-MiniLM-L6-v2 (local 384-d embeddings, FastEmbed / ONNX Runtime)
                               └─▶ Groq (openai/gpt-oss-20b via LangChain)
 ```
 
@@ -85,17 +85,15 @@ The `*_live.py` backend tests use the real Groq API and write (temporary) rows t
 
 ## Deployment (free tiers)
 
-- **Backend → Hugging Face Space (Docker, free CPU).** PyTorch plus the embedding model need about
-  600 MB of RAM, more than Render's free 512 MB.
-  1. Create a new Space with the **Docker** SDK (blank template).
-  2. In the Space settings, add the secrets `GROQ_API_KEY`, `GROQ_MODEL`, `SUPABASE_URL`, `SUPABASE_KEY`.
-  3. Upload the `Dockerfile`, `backend/app/`, `backend/requirements.txt`,
-     `backend/requirements-embeddings.txt`, and `deploy/hf-space/README.md` **as the Space's `README.md`**
-     (it holds the Space configuration: Docker SDK, port 7860).
-  4. Wait for the build; `https://<user>-<space>.hf.space/health` should return `healthy`.
+- **Backend → Render free web service (Docker).** Embeddings run on ONNX Runtime (FastEmbed), so the
+  whole API peaks around 300 MB, within Render's free 512 MB.
+  1. New → Web Service → connect this GitHub repository; Language **Docker** (uses the root
+     `Dockerfile`), instance type **Free**, health check path `/health`.
+  2. Add the environment variables `GROQ_API_KEY`, `GROQ_MODEL`, `SUPABASE_URL`, `SUPABASE_KEY`.
+  3. Deploy; `https://<service>.onrender.com/health` should return `healthy`.
 - **Frontend → Streamlit Community Cloud.** New app from this GitHub repository, main file
-  `frontend/app.py`, Python 3.12, and the secret `API_BASE_URL = "https://<user>-<space>.hf.space"`.
-  The frontend only installs `frontend/requirements.txt` (no PyTorch).
+  `frontend/app.py`, Python 3.12, and the secret `API_BASE_URL = "https://<service>.onrender.com"`.
+  The frontend only installs `frontend/requirements.txt`.
 
 ## Limitations
 
@@ -115,6 +113,6 @@ The `*_live.py` backend tests use the real Groq API and write (temporary) rows t
 - `backend/` FastAPI app (routes, schemas, services, db, prompts, tests)
 - `frontend/` Streamlit app (`app.py`, `views/`, `components/`, `api_client.py`, tests)
 - `database/migrations/` SQL migrations
-- `Dockerfile`, `deploy/hf-space/` backend deployment
+- `Dockerfile` backend container (Render or any Docker host)
 - `scripts/` manual experiment scripts (transcript, RAG, insights and retrieval checks against real services)
 - `docs/` specifications

@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Status:** Proposed  
 **Frontend Hosting:** Streamlit Community Cloud  
-**Backend Hosting:** Hugging Face Spaces (Docker)\
+**Backend Hosting:** Render (Docker, free)\
 **Database:** Supabase
 
 ## 1. Introduction
@@ -27,8 +27,8 @@ Responsibilities:
 
 ### Backend
 
-Hugging Face Spaces (Docker SDK, free CPU hardware). The backend loads PyTorch and the local
-embedding model (about 600 MB of RAM), which does not fit free hosts limited to 512 MB.
+Render free web service, built from the repository `Dockerfile`. Embeddings run locally on ONNX
+Runtime (FastEmbed, no PyTorch), so the API peaks around 300 MB of RAM, within the free 512 MB.
 
 Responsibilities:
 
@@ -63,43 +63,31 @@ Before deployment:
 
 ## 4. Backend Deployment
 
-The repository contains everything the Space needs:
+The repository contains everything the service needs:
 
-- `Dockerfile` (repository root): Python 3.12, CPU-only PyTorch, the backend requirements, the
-  embedding model downloaded at build time, and `uvicorn app.main:app` on port 7860 (`$PORT`).
+- `Dockerfile` (repository root): Python 3.12, the backend requirements (FastEmbed / ONNX Runtime),
+  the embedding model downloaded at build time, and `uvicorn app.main:app` on `$PORT` (set by Render).
 - `.dockerignore`: keeps `.env` files, secrets and non-backend folders out of the build.
-- `deploy/hf-space/README.md`: the Space configuration card (`sdk: docker`, `app_port: 7860`).
 
-### Step 1: Create the Space
+### Step 1: Create the Web Service
 
-On Hugging Face, create a new Space with the **Docker** SDK (blank template, free CPU hardware).
+In Render: New → Web Service → connect the GitHub repository. Choose Language **Docker** (root
+`Dockerfile`), instance type **Free**, and health check path `/health`.
 
-### Step 2: Configure Secrets
+### Step 2: Configure Environment Variables
 
-In the Space settings (Variables and secrets), add:
+In the service's Environment settings, add:
 
 - GROQ_API_KEY
 - GROQ_MODEL (for example `openai/gpt-oss-20b`)
 - SUPABASE_URL
 - SUPABASE_KEY (service-role key; backend only)
 
-Never upload secret credentials into GitHub or the Space files.
+Never upload secret credentials into GitHub.
 
-### Step 3: Upload the Backend
+### Step 3: Deploy and Verify
 
-Upload to the Space:
-
-- `Dockerfile`
-- `backend/app/`
-- `backend/requirements.txt`
-- `backend/requirements-embeddings.txt`
-- `deploy/hf-space/README.md`, uploaded **as the Space's `README.md`** (it carries the Space configuration)
-
-The Space builds the image automatically.
-
-### Step 4: Deploy and Verify
-
-The API is served at `https://<user>-<space>.hf.space`.
+Render builds the image and serves the API at `https://<service>.onrender.com`.
 
 Verify:
 
@@ -129,7 +117,7 @@ Select the frontend entry-point file and Python 3.12:
 frontend/app.py
 ```
 
-Streamlit Cloud installs `frontend/requirements.txt` (Streamlit and requests only, no PyTorch) and
+Streamlit Cloud installs `frontend/requirements.txt` (Streamlit and requests only) and
 reads the theme from `frontend/.streamlit/config.toml`.
 
 ### Step 4: Configure Secrets
@@ -139,7 +127,7 @@ Add the backend API URL through the Streamlit secrets configuration.
 Example:
 
 ```toml
-API_BASE_URL = "https://<user>-<space>.hf.space"
+API_BASE_URL = "https://<service>.onrender.com"
 ```
 
 Do not expose backend API credentials through frontend configuration.
@@ -253,7 +241,7 @@ Future maintenance tasks:
 
 TubeTalk AI will use a separate frontend, backend, and database deployment architecture.
 
-Streamlit Community Cloud will host the frontend, a Hugging Face Docker Space will host FastAPI, and Supabase will provide persistent PostgreSQL and vector storage.
+Streamlit Community Cloud will host the frontend, a Render free web service will host FastAPI, and Supabase will provide persistent PostgreSQL and vector storage.
 
 The application will be deployed only after critical features have been tested locally.
 

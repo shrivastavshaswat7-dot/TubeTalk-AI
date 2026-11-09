@@ -1,5 +1,3 @@
-# Heavy ML dependencies (pulls in PyTorch), kept separate from the lighter API dependencies.
-# Resolves on Python 3.12 / Windows (checked with `uv pip compile`, not installed).
+# Embedding runtime: FastEmbed runs all-MiniLM-L6-v2 on ONNX Runtime (no PyTorch, small memory).
 -r requirements.txt
-sentence-transformers==6.2.0
-langchain-huggingface==1.2.3
+fastembed==0.9.1

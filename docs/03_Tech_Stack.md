@@ -49,7 +49,7 @@ The technology stack is selected based on:
 | LLM Integration | LangChain Groq |
 | Backend Server | Uvicorn |
 | Frontend Hosting | Streamlit Community Cloud |
-| Backend Hosting | Hugging Face Spaces (Docker) |
+| Backend Hosting | Render (Docker, free) |
 | Version Control | Git + GitHub |
 | Development Environment | VS Code |
 
@@ -572,9 +572,9 @@ Official Website:
 
 https://streamlit.io/cloud
 
-## 12.2 Hugging Face Spaces
+## 12.2 Render
 
-Purpose: Deploy the FastAPI backend as a Docker Space.
+Purpose: Deploy the FastAPI backend as a free Docker web service.
 
 Responsibilities:
 
@@ -584,16 +584,16 @@ Responsibilities:
 
 Official Website:
 
-https://huggingface.co/spaces
+https://render.com/
 
-Why this host: the backend loads PyTorch and the embedding model (about 600 MB of RAM), which does
-not fit free tiers limited to 512 MB. The free CPU Space has enough memory.
+Why it fits: embeddings run on ONNX Runtime through FastEmbed (no PyTorch), so the backend peaks
+around 300 MB of RAM, within the free instance's 512 MB.
 
 Deployment considerations:
 
-- Space secrets for the backend environment variables.
-- The repository `Dockerfile` (CPU-only PyTorch, model baked into the image, port 7860).
-- The Space configuration card in `deploy/hf-space/README.md`.
+- Environment variables for the backend secrets.
+- The repository `Dockerfile` (FastEmbed, model baked into the image, listens on `$PORT`).
+- Health check path `/health`.
 - Sleep after inactivity and cold starts.
 - Transcript requests from cloud IPs may be blocked by YouTube.
 
@@ -613,7 +613,7 @@ The following packages are expected to be used during implementation.
 | langchain-text-splitters | Text chunking |
 | langchain-groq | Groq integration |
 | youtube-transcript-api | Transcript extraction |
-| sentence-transformers | Embeddings |
+| fastembed (ONNX Runtime) | Embeddings |
 | supabase | Supabase client |
 | python-dotenv | Environment variables |
 | pydantic | Data validation |
@@ -678,7 +678,7 @@ The following technologies may be considered in future versions.
 | Hugging Face | OpenAI Embeddings |
 | Supabase pgvector | ChromaDB / Pinecone |
 | Groq | Gemini / Mistral |
-| Hugging Face Spaces | Render / Railway / Other Cloud Hosting |
+| Render | Hugging Face Spaces / Railway / Other Cloud Hosting |
 
 These alternatives are not part of the initial implementation plan.
 
