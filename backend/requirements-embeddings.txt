@@ -1,4 +1,4 @@
-# Heavy ML dependencies (pulls in PyTorch). NOT installed in M1; added at the embeddings milestone.
+# Heavy ML dependencies (pulls in PyTorch), kept separate from the lighter API dependencies.
 # Resolves on Python 3.12 / Windows (checked with `uv pip compile`, not installed).
 -r requirements.txt
 sentence-transformers==6.2.0

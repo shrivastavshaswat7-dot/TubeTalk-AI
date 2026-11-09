@@ -49,7 +49,7 @@ The technology stack is selected based on:
 | LLM Integration | LangChain Groq |
 | Backend Server | Uvicorn |
 | Frontend Hosting | Streamlit Community Cloud |
-| Backend Hosting | Render |
+| Backend Hosting | Hugging Face Spaces (Docker) |
 | Version Control | Git + GitHub |
 | Development Environment | VS Code |
 
@@ -572,28 +572,30 @@ Official Website:
 
 https://streamlit.io/cloud
 
-## 12.2 Render
+## 12.2 Hugging Face Spaces
 
-Purpose: Deploy the FastAPI backend.
+Purpose: Deploy the FastAPI backend as a Docker Space.
 
 Responsibilities:
 
-- Host the Python backend.
+- Host the Python backend, including the local embedding model.
 - Provide a public API endpoint.
 - Handle incoming application requests.
 
 Official Website:
 
-https://render.com/
+https://huggingface.co/spaces
+
+Why this host: the backend loads PyTorch and the embedding model (about 600 MB of RAM), which does
+not fit free tiers limited to 512 MB. The free CPU Space has enough memory.
 
 Deployment considerations:
 
-- Environment variables.
-- API URLs.
-- Dependency installation.
-- Server startup commands.
-- CORS configuration.
-- Service availability and hosting limits.
+- Space secrets for the backend environment variables.
+- The repository `Dockerfile` (CPU-only PyTorch, model baked into the image, port 7860).
+- The Space configuration card in `deploy/hf-space/README.md`.
+- Sleep after inactivity and cold starts.
+- Transcript requests from cloud IPs may be blocked by YouTube.
 
 ---
 
@@ -676,7 +678,7 @@ The following technologies may be considered in future versions.
 | Hugging Face | OpenAI Embeddings |
 | Supabase pgvector | ChromaDB / Pinecone |
 | Groq | Gemini / Mistral |
-| Render | Railway / Other Cloud Hosting |
+| Hugging Face Spaces | Render / Railway / Other Cloud Hosting |
 
 These alternatives are not part of the initial implementation plan.
 

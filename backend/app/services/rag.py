@@ -3,8 +3,8 @@
 Context selection: if the whole transcript fits FULL_CONTEXT_MAX_TOKENS, every chunk is passed, so
 nothing relevant can be missed; otherwise the TOP_K most similar chunks. Similarity only ranks
 context: it does not decide whether the video contains the answer. That decision belongs to the
-model, which must reply INSUFFICIENT_CONTEXT when the excerpts don't support an answer (audit: the
-similarity score could not separate answerable from absent questions, the model could).
+model, which must reply INSUFFICIENT_CONTEXT when the excerpts don't support an answer (in testing,
+the similarity score could not separate answerable from absent questions; the model could).
 
 Citations: excerpts are numbered [C1].. in the prompt; the model cites them; only cited excerpts
 become sources, unknown ids are dropped, and the [Cn] markers are replaced with timestamps rendered

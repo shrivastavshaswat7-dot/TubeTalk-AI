@@ -41,7 +41,7 @@ RAG flow for one question:
 
 ## Setup (Windows, PowerShell)
 
-The virtual environment lives outside the project (the project is in OneDrive):
+Create a Python 3.12 virtual environment (any location works) and install the dependencies:
 
 ```powershell
 uv venv "$env:USERPROFILE\venvs\tubetalk" --python 3.12
@@ -76,7 +76,7 @@ Open http://localhost:8501. The frontend reads the backend address from `API_BAS
 
 ```powershell
 uv pip install --python "$env:USERPROFILE\venvs\tubetalk\Scripts\python.exe" -r requirements-dev.txt
-cd frontend ; python -m pytest tests -q
+cd frontend ; python -m pytest tests -q ; cd ..
 cd backend ; python -m pytest tests -q --ignore=tests/test_api_live.py --ignore=tests/test_db_live.py --ignore=tests/test_insights_live.py --ignore=tests/test_rag_live.py --ignore=tests/test_retrieval_live.py
 ```
 
@@ -116,5 +116,5 @@ The `*_live.py` backend tests use the real Groq API and write (temporary) rows t
 - `frontend/` Streamlit app (`app.py`, `views/`, `components/`, `api_client.py`, tests)
 - `database/migrations/` SQL migrations
 - `Dockerfile`, `deploy/hf-space/` backend deployment
-- `scripts/` manual experiments and the offline RAG evaluation harness (`scripts/rag_eval/`)
+- `scripts/` manual experiment scripts (transcript, RAG, insights and retrieval checks against real services)
 - `docs/` specifications

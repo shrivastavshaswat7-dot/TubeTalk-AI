@@ -250,7 +250,7 @@ The expected user journey is:
 | Relational Database | Supabase PostgreSQL |
 | LLM Provider | Groq |
 | Frontend Hosting | Streamlit Community Cloud |
-| Backend Hosting | Render |
+| Backend Hosting | Hugging Face Spaces (Docker) |
 
 Final library versions and model availability will be verified during implementation.
 

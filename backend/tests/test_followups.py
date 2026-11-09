@@ -1,4 +1,4 @@
-"""Step 3: conversational follow-ups. History helps resolve references (never as evidence), retrieval
+"""Conversational follow-ups. History helps resolve references (never as evidence), retrieval
 stays anchored when the rewrite fails, and unresolvable references get a clarifying question."""
 from types import SimpleNamespace as NS
 from unittest.mock import MagicMock

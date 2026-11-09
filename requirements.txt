@@ -1,6 +1,6 @@
 # TubeTalk AI: runtime dependencies for the complete local project (backend, RAG/embeddings, frontend).
 # Test tools are in requirements-dev.txt.
-# Python 3.12. Direct dependencies are pinned to the versions used and tested in M1–M10; pip resolves
+# Python 3.12. Direct dependencies are pinned to the versions used and tested; pip resolves
 # the remaining transitive dependencies. Consolidated from backend/requirements.txt,
 # backend/requirements-dev.txt, backend/requirements-embeddings.txt and frontend/requirements.txt
 # (those files are kept for per-service deployment).
@@ -24,7 +24,7 @@ groq==0.37.1  # imported directly by the backend; normally only installed via la
 # ── Embeddings (pulls in PyTorch; the PyPI wheel for Windows is CPU-only) ─────
 sentence-transformers==6.2.0
 langchain-huggingface==1.2.3
-torch==2.15.0  # version installed and tested in M6–M10
+torch==2.15.0  # version installed and tested
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 streamlit==1.66.1

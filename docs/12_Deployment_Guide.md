@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Status:** Proposed  
 **Frontend Hosting:** Streamlit Community Cloud  
-**Backend Hosting:** Render  
+**Backend Hosting:** Hugging Face Spaces (Docker)\
 **Database:** Supabase
 
 ## 1. Introduction
@@ -27,7 +27,8 @@ Responsibilities:
 
 ### Backend
 
-Render.
+Hugging Face Spaces (Docker SDK, free CPU hardware). The backend loads PyTorch and the local
+embedding model (about 600 MB of RAM), which does not fit free hosts limited to 512 MB.
 
 Responsibilities:
 
@@ -62,54 +63,43 @@ Before deployment:
 
 ## 4. Backend Deployment
 
-### Step 1: Prepare Backend
+The repository contains everything the Space needs:
 
-Ensure the backend contains:
+- `Dockerfile` (repository root): Python 3.12, CPU-only PyTorch, the backend requirements, the
+  embedding model downloaded at build time, and `uvicorn app.main:app` on port 7860 (`$PORT`).
+- `.dockerignore`: keeps `.env` files, secrets and non-backend folders out of the build.
+- `deploy/hf-space/README.md`: the Space configuration card (`sdk: docker`, `app_port: 7860`).
 
-- FastAPI application.
-- requirements.txt.
-- Correct application entry point.
-- Environment variable configuration.
+### Step 1: Create the Space
 
-### Step 2: Push Code to GitHub
+On Hugging Face, create a new Space with the **Docker** SDK (blank template, free CPU hardware).
 
-Commit and push the working backend code.
+### Step 2: Configure Secrets
 
-### Step 3: Create Render Service
-
-Create a new web service connected to the GitHub repository.
-
-Select the backend directory as the service root directory when using a monorepo.
-
-### Step 4: Configure Commands
-
-Build command:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start command example:
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port $PORT
-```
-
-The exact import path will depend on the final backend directory structure.
-
-### Step 5: Configure Environment Variables
-
-Add required environment variables through Render's dashboard.
-
-Expected variables:
+In the Space settings (Variables and secrets), add:
 
 - GROQ_API_KEY
+- GROQ_MODEL (for example `openai/gpt-oss-20b`)
 - SUPABASE_URL
-- SUPABASE_KEY
+- SUPABASE_KEY (service-role key; backend only)
 
-Never upload secret credentials into GitHub.
+Never upload secret credentials into GitHub or the Space files.
 
-### Step 6: Deploy and Verify
+### Step 3: Upload the Backend
+
+Upload to the Space:
+
+- `Dockerfile`
+- `backend/app/`
+- `backend/requirements.txt`
+- `backend/requirements-embeddings.txt`
+- `deploy/hf-space/README.md`, uploaded **as the Space's `README.md`** (it carries the Space configuration)
+
+The Space builds the image automatically.
+
+### Step 4: Deploy and Verify
+
+The API is served at `https://<user>-<space>.hf.space`.
 
 Verify:
 
@@ -133,13 +123,14 @@ Push the latest tested code.
 
 Connect the GitHub repository.
 
-Select the frontend entry-point file.
-
-Example:
+Select the frontend entry-point file and Python 3.12:
 
 ```text
 frontend/app.py
 ```
+
+Streamlit Cloud installs `frontend/requirements.txt` (Streamlit and requests only, no PyTorch) and
+reads the theme from `frontend/.streamlit/config.toml`.
 
 ### Step 4: Configure Secrets
 
@@ -148,7 +139,7 @@ Add the backend API URL through the Streamlit secrets configuration.
 Example:
 
 ```toml
-API_BASE_URL = "https://your-backend-domain.com"
+API_BASE_URL = "https://<user>-<space>.hf.space"
 ```
 
 Do not expose backend API credentials through frontend configuration.
@@ -180,6 +171,7 @@ Do not expose service-role credentials to Streamlit.
 
 ```env
 GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=openai/gpt-oss-20b
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_backend_database_key
 ```
@@ -196,9 +188,9 @@ The example values above are placeholders.
 
 ## 8. CORS Configuration
 
-FastAPI must allow requests from the deployed Streamlit frontend.
-
-Configure the allowed origins to include the actual frontend URL.
+The Streamlit app calls the backend from the Streamlit server, not from the browser, so CORS does
+not block it. `ALLOWED_ORIGINS` only matters for browser-based clients; if one is added, set it to
+that client's actual URL.
 
 Avoid unrestricted CORS in production unless there is a justified requirement.
 
@@ -261,7 +253,7 @@ Future maintenance tasks:
 
 TubeTalk AI will use a separate frontend, backend, and database deployment architecture.
 
-Streamlit Community Cloud will host the frontend, Render will host FastAPI, and Supabase will provide persistent PostgreSQL and vector storage.
+Streamlit Community Cloud will host the frontend, a Hugging Face Docker Space will host FastAPI, and Supabase will provide persistent PostgreSQL and vector storage.
 
 The application will be deployed only after critical features have been tested locally.
 

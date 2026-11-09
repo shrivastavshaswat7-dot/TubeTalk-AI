@@ -28,9 +28,10 @@ htmlcov/
 huggingface/
 models/
 
-# Editors and OS
+# Editors, local tool settings and OS
 .vscode/
 .idea/
+.claude/
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -38,10 +39,3 @@ desktop.ini
 # Logs and temp
 *.log
 tmp/
-
-# RAG evaluation: cached transcripts/embeddings (.cache/ above) and raw runs are never committed;
-# only datasets, reviews.json and an approved results/baseline.json are.
-scripts/rag_eval/results/runs/
-
-# Claude Code local settings
-.claude/
