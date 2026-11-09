@@ -1,0 +1,4 @@
+# Frontend (Streamlit) dependencies. Kept separate from the backend so the
+# Streamlit Cloud deploy stays light (no torch).
+streamlit==1.66.1
+requests==2.34.2

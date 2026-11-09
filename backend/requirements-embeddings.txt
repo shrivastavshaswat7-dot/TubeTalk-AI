@@ -1,0 +1,5 @@
+# Heavy ML dependencies (pulls in PyTorch). NOT installed in M1; added at the embeddings milestone.
+# Resolves on Python 3.12 / Windows (checked with `uv pip compile`, not installed).
+-r requirements.txt
+sentence-transformers==6.2.0
+langchain-huggingface==1.2.3

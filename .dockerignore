@@ -1,0 +1,14 @@
+# Only backend/app and the backend requirements are copied into the image; never send secrets.
+**/.env
+**/.env.*
+**/secrets.toml
+**/__pycache__
+**/.pytest_cache
+.git
+.claude
+.vscode
+frontend
+docs
+scripts
+database
+backend/tests

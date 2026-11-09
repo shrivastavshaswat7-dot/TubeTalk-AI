@@ -1,0 +1,47 @@
+# Secrets and local environment files (never commit real credentials)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.streamlit/secrets.toml
+**/.streamlit/secrets.toml
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ML model caches (embedding models are downloaded at runtime)
+.cache/
+huggingface/
+models/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temp
+*.log
+tmp/
+
+# RAG evaluation: cached transcripts/embeddings (.cache/ above) and raw runs are never committed;
+# only datasets, reviews.json and an approved results/baseline.json are.
+scripts/rag_eval/results/runs/
+
+# Claude Code local settings
+.claude/

@@ -1,0 +1,38 @@
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+# End-user toolbar: no Deploy button and no developer menu items (Rerun, Auto rerun, Clear cache),
+# even on localhost. The rest of the ⋮ menu is hidden in style.py and replaced by the header theme
+# selector (components/theme.py), which still uses the menu's theme items.
+toolbarMode = "viewer"
+
+# Forest green × black × red. Black-green surfaces dominate, forest green marks identity, primary
+# actions and selection, and red is kept for small highlights (see components/style.py). Streamlit
+# offers the light/dark switch in its own Settings menu, so both variants are defined here.
+[theme.dark]
+primaryColor = "#176B45"
+backgroundColor = "#101512"
+secondaryBackgroundColor = "#19231D"
+textColor = "#F2F4F0"
+borderColor = "#2A3730"
+linkColor = "#6FC596"
+font = "sans serif"
+headingFont = "serif"
+baseRadius = "8px"
+
+# Not an inversion: a pale sage paper with the same green and deep-green ink, dark enough that
+# Streamlit's faded captions stay readable on both surfaces.
+[theme.light]
+primaryColor = "#176B45"
+backgroundColor = "#F5F7F3"
+secondaryBackgroundColor = "#E7EDE7"
+textColor = "#0B1510"
+borderColor = "#CBD6CD"
+linkColor = "#125A39"
+font = "sans serif"
+headingFont = "serif"
+baseRadius = "8px"
