@@ -65,5 +65,9 @@ def process_video(
         _mark_failed(videos, video["id"], "failed", "Processing failed unexpectedly.")
         raise AppError("PROCESSING_FAILED", "The video could not be processed. Please try again.", 500)
 
-    video = videos.update_status(video["id"], "completed", language=transcript.language_code)
+    try:
+        video = videos.update_status(video["id"], "completed", language=transcript.language_code)
+    except Exception:  # otherwise the video would stay "processing" and block re-submits
+        _mark_failed(videos, video["id"], "failed", "Processing failed unexpectedly.")
+        raise
     return video, _default_session(sessions, video["id"]), False

@@ -110,7 +110,8 @@ def _render_videos(navigate_to_workspace) -> None:
 
 def _render_status() -> None:
     """The health check still runs (cached), but users only see it when something is wrong."""
-    healthy, _ = state.cached_health(ac.check_health)
+    with st.spinner("Connecting to the server…"):  # only visible while a sleeping backend wakes up
+        healthy, _ = state.cached_health(ac.check_health)
     if healthy:
         return
     st.divider()

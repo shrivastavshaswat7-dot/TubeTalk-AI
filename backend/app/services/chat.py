@@ -165,5 +165,12 @@ def chat(
 
     # Nothing is persisted until an answer exists, so failures leave no half-saved exchange.
     user_row = messages.add(session_id, "user", message)
-    assistant_row = messages.add(session_id, "assistant", rag.answer, sources=sources)
+    try:
+        assistant_row = messages.add(session_id, "assistant", rag.answer, sources=sources)
+    except Exception:
+        try:  # don't leave an unanswered question in the history
+            messages.delete(user_row["id"])
+        except Exception:
+            pass  # never hide the original error
+        raise
     return ChatResult(standalone, rag, user_row, assistant_row, answer_type)

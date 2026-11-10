@@ -28,7 +28,11 @@ def show(navigate_to_workspace) -> None:
             label_visibility="collapsed",
         )
         submitted = button.form_submit_button("Process video", type="primary", width="stretch")
-    st.caption("Works with videos that have English captions. Long videos can take a minute or more to process.")
+    st.caption(
+        "Works with videos that have English captions. Long videos can take a minute or more to process. "
+        "YouTube sometimes blocks transcript requests from cloud servers; if a new video can't be processed, "
+        "try one of your videos below."
+    )
 
     if submitted:
         if url.strip():

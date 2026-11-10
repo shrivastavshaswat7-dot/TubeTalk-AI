@@ -83,7 +83,8 @@ def fetch_transcript(video_id: str, api: YouTubeTranscriptApi | None = None) -> 
     except (RequestBlocked, IpBlocked):
         raise AppError(
             "YOUTUBE_BLOCKED",
-            "YouTube blocked the transcript request from this server. Please try again later.",
+            "YouTube blocked the transcript request from this server, so this video couldn't be "
+            "processed. Try another video.",
             503,
         )
     except CouldNotRetrieveTranscript:

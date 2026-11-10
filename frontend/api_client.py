@@ -4,8 +4,10 @@ import requests
 from config import get_api_base_url
 
 # Seconds. Processing and first-time insights are synchronous on the backend and can take minutes.
-_T_DEFAULT = 15
-_T_HEALTH = 5
+# A free-tier backend that slept while idle holds the first request for about a minute while it
+# wakes up, so short calls wait that long instead of reporting a working backend as down.
+_T_DEFAULT = 60
+_T_HEALTH = 60
 _T_PROCESS = 300
 _T_CHAT = 300  # an overview question may generate the video's insights the first time
 _T_INSIGHTS = 300

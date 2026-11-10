@@ -209,7 +209,8 @@ def get_or_generate(
         raise AppError("VIDEO_NOT_READY", "This video has not finished processing.", 409)
 
     row = insights.get(video_id)
-    if row and row["status"] == "completed" and row.get("summary") and not force:
+    # Stored insights stay readable while a regeneration is running (mark_generating keeps them).
+    if row and row["status"] in ("completed", "generating") and row.get("summary") and not force:
         return row, True
     if row and row["status"] == "generating" and not _is_stale(row):
         raise AppError("INSIGHTS_GENERATING", "Insights are already being generated. Please wait.", 409)

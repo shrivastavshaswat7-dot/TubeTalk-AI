@@ -12,6 +12,7 @@ import streamlit as st
 
 import state
 from components import style, theme
+from config import MISSING_API_URL_MESSAGE, get_api_base_url
 
 st.set_page_config(
     page_title="TubeTalk AI",
@@ -22,6 +23,10 @@ st.set_page_config(
 style.inject()
 theme.render()  # header theme selector; right after the stylesheet so it keeps its place on every page
 state.init_state()
+
+if not get_api_base_url():  # a deployment without the backend address: say so, call nothing
+    st.error(MISSING_API_URL_MESSAGE, icon=":material/settings:")
+    st.stop()
 
 # The URL decides the page on every run, not just the first: Streamlit can reattach a reloaded tab
 # to its existing session, so a remembered page could otherwise outlive the URL it came from.

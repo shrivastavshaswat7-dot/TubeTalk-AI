@@ -32,8 +32,10 @@ from app.services.retrieval import retrieve
 CHARS_PER_TOKEN = 4  # rough English average; only used to decide whether the transcript fits
 FALLBACK_SOURCES = 2  # grounded answer without usable citations: show the most similar excerpts
 
-# [C2] [C1, C3] [C1][C3] and the full-width brackets some models emit: 【C2】
-_CITATION = re.compile(r"[\[【]\s*(C\d+(?:\s*[,;]\s*C\d+)*)\s*[\]】]")
+# [C2] [C1, C3] [C1][C3] [C1-C3] [C1 and C3] [c2], and the full-width brackets some models emit: 【C2】
+_CITATION = re.compile(r"[\[【]\s*(C\d+(?:\s*(?:[,;–-]|and)\s*C\d+)*)\s*[\]】]", re.IGNORECASE)
+_CITATION_REF = re.compile(r"C(\d+)(?:\s*[–-]\s*C(\d+))?", re.IGNORECASE)
+MAX_CITATION_RANGE = 10  # [C1-C99] is a model glitch, not 99 citations
 
 
 @dataclass(frozen=True)
@@ -68,8 +70,13 @@ def apply_citations(reply: str, context: list[RetrievedChunk]) -> tuple[str, lis
 
     def render(match: re.Match) -> str:
         stamps = []
-        for ref in re.split(r"\s*[,;]\s*", match.group(1)):
-            index = int(ref[1:]) - 1
+        numbers = []
+        for ref in _CITATION_REF.finditer(match.group(1)):
+            first = int(ref.group(1))
+            last = int(ref.group(2) or first)
+            numbers.extend(range(first, last + 1) if 0 <= last - first < MAX_CITATION_RANGE else [first])
+        for number in numbers:
+            index = number - 1
             if 0 <= index < len(context):
                 chunk = context[index]
                 if chunk not in cited:

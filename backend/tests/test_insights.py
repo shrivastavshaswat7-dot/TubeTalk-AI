@@ -293,6 +293,20 @@ def test_concurrent_generation_rejected_but_stale_retried(repos, scripted):
     assert run(repos)[1] is False
 
 
+def test_existing_insights_stay_readable_during_regeneration(repos, scripted):
+    s = scripted()
+    first, _ = run(repos)
+    videos, insights, chunks, vid = repos
+    insights.mark_generating(vid)  # a regeneration is running elsewhere
+    n = len(s.calls)
+    row, cached = run(repos)
+    assert cached is True and row["summary"] == first["summary"] and len(s.calls) == n
+    assert run(repos, generate=False)[0]["summary"] == first["summary"]  # suggestions' read path
+    with pytest.raises(AppError) as e:
+        run(repos, force=True)  # a second regeneration is still rejected
+    assert e.value.error == "INSIGHTS_GENERATING"
+
+
 def test_video_must_exist_and_be_completed(repos, scripted):
     scripted()
     videos, insights, chunks, vid = repos

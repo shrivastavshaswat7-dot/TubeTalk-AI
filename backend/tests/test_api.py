@@ -140,6 +140,20 @@ def test_failed_video_can_be_retried(env, monkeypatch):
     assert r.status_code == 200 and r.json()["reused"] is False
 
 
+def test_failure_to_mark_completed_does_not_leave_video_processing(env, monkeypatch):
+    real_update = env.videos.update_status
+
+    def update(video_id, status, error_message=None, language=None):
+        if status == "completed":
+            raise AppError("DATABASE_ERROR", "A database error occurred.", 503)
+        return real_update(video_id, status, error_message=error_message, language=language)
+
+    monkeypatch.setattr(env.videos, "update_status", update)
+    r = process(URL_A)
+    assert r.status_code == 503 and r.json()["error"] == "DATABASE_ERROR"
+    assert env.videos.get_by_youtube_id(VID_A)["processing_status"] == "failed"  # re-submittable at once
+
+
 def test_concurrent_processing_is_rejected_but_stale_is_retried(env):
     process(URL_A)
     row = env.videos.get_by_youtube_id(VID_A)
@@ -332,6 +346,21 @@ def test_llm_failure_returns_error_and_persists_nothing(env, monkeypatch):
     r = chat(vid, sid, "hi")
     assert r.status_code == 429 and r.json()["error"] == "LLM_RATE_LIMITED"
     assert env.messages.rows == []
+
+
+def test_failed_answer_write_leaves_no_unanswered_question(env, monkeypatch):
+    vid, sid = start(env)
+    real_add = env.messages.add
+
+    def add(session_id, role, content, sources=None):
+        if role == "assistant":
+            raise AppError("DATABASE_ERROR", "A database error occurred.", 503)
+        return real_add(session_id, role, content, sources)
+
+    monkeypatch.setattr(env.messages, "add", add)
+    r = chat(vid, sid, "hi")
+    assert r.status_code == 503 and r.json()["error"] == "DATABASE_ERROR"
+    assert env.messages.rows == []  # the user's message was removed again
 
 
 def test_contextualisation_failure_falls_back_to_original_question(env, monkeypatch):

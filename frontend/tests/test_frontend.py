@@ -186,6 +186,8 @@ def test_reused_video_is_announced(api):
      "Available languages: ko."),
     ("BACKEND_UNREACHABLE", "x", "Can't reach the backend."),
     ("TIMEOUT", "x", "taking longer than expected"),
+    ("YOUTUBE_BLOCKED", "YouTube blocked the transcript request from this server. Please try again later.",
+     "YouTube didn't allow this server to download its transcript"),
 ])
 def test_processing_errors_are_shown_outside_the_collapsed_status(api, code, message, expected):
     api.patch("process_video", error=ApiError(code, message))
@@ -195,6 +197,25 @@ def test_processing_errors_are_shown_outside_the_collapsed_status(api, code, mes
     assert not at.exception
     assert any(expected in str(e.value) for e in at.error)
     assert at.session_state["page"] == "home"
+
+
+@pytest.mark.parametrize("value", [None, "", "   "])
+def test_missing_backend_address_shows_configuration_error(api, monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("API_BASE_URL", raising=False)
+    else:
+        monkeypatch.setenv("API_BASE_URL", value)
+    at = run_home()
+    assert not at.exception
+    assert any("API_BASE_URL" in str(e.value) and "missing" in str(e.value) for e in at.error)
+    assert api.log == []  # nothing is called, in particular not localhost
+
+
+def test_backend_address_is_trimmed(monkeypatch):
+    import config
+
+    monkeypatch.setenv("API_BASE_URL", " https://api.example.test/ ")
+    assert config.get_api_base_url() == "https://api.example.test"
 
 
 def test_recent_videos_error_offers_retry(api):
@@ -432,10 +453,25 @@ def test_client_sends_ids_and_timeouts(monkeypatch):
     monkeypatch.setattr(api_client.requests, "request", capture)
     api_client.get_messages(SID, VID)
     assert seen["url"].endswith(f"/api/sessions/{SID}/messages") and seen["params"] == {"video_id": VID}
+    assert seen["timeout"] == 60  # long enough for a sleeping free-tier backend to wake up
     api_client.chat(VID, SID, "hi")
     assert seen["json"] == {"video_id": VID, "session_id": SID, "message": "hi"} and seen["timeout"] == 300
     api_client.process_video(URL)
     assert seen["timeout"] == 300
+
+
+def test_health_check_waits_for_a_waking_backend(monkeypatch):
+    seen = {}
+
+    def capture(url, timeout):
+        seen.update(url=url, timeout=timeout)
+        resp = FakeResp(200, {"status": "healthy", "application": "TubeTalk AI"})
+        resp.raise_for_status = lambda: None
+        return resp
+
+    monkeypatch.setattr(api_client.requests, "get", capture)
+    assert api_client.check_health() == (True, "TubeTalk AI")
+    assert seen["url"].endswith("/health") and seen["timeout"] == 60
 
 
 # ── Formatting / errors ───────────────────────────────────────────────────────
@@ -573,7 +609,7 @@ def test_client_peek_insights_never_generates(monkeypatch):
 
     monkeypatch.setattr(api_client.requests, "request", capture)
     api_client.get_insights(VID, generate=False)
-    assert seen["params"] == {"generate": "false"} and seen["timeout"] == 15
+    assert seen["params"] == {"generate": "false"} and seen["timeout"] == 60  # waits out a cold start
 
 
 def test_client_suggestions_endpoint(monkeypatch):

@@ -138,6 +138,10 @@ class MessageRepository:
         with _db_errors():
             return _first(self.client.table("chat_messages").insert(row).execute())
 
+    def delete(self, message_id: str) -> None:
+        with _db_errors():
+            self.client.table("chat_messages").delete().eq("id", message_id).execute()
+
     def list_for_session(self, session_id: str, limit: int | None = None) -> list[dict]:
         """Chronological messages of ONE session. With a limit, returns the most recent N."""
         with _db_errors():

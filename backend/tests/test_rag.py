@@ -120,6 +120,12 @@ def test_only_cited_excerpts_become_sources_and_markers_become_real_timestamps()
     ("Fact 【C2】.", ["c2"], "Fact [00:50–01:20]."),
     ("Fact [C9].", None, "Fact."),  # unknown id dropped, never shown
     ("Fact [C1] and fake [C7].", ["c1"], "Fact [00:10–00:40] and fake."),
+    ("Fact [c2].", ["c2"], "Fact [00:50–01:20]."),  # lowercase
+    ("Fact [C1-C2].", ["c1", "c2"], "Fact [00:10–00:40, 00:50–01:20]."),  # range
+    ("Fact [C1–C2].", ["c1", "c2"], "Fact [00:10–00:40, 00:50–01:20]."),  # en-dash range
+    ("Fact [C1 and C2].", ["c1", "c2"], "Fact [00:10–00:40, 00:50–01:20]."),
+    ("Fact [C2, c1].", ["c2", "c1"], "Fact [00:50–01:20, 00:10–00:40]."),
+    ("Fact [C1-C99].", ["c1"], "Fact [00:10–00:40]."),  # absurd range: only the first id
 ])
 def test_citation_formats_and_unknown_ids(reply, expected_ids, expected_text):
     out, _ = run([rc(1, 0.4, 10, 40), rc(2, 0.9, 50, 80)], reply=reply)

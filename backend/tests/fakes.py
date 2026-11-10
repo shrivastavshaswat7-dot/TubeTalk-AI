@@ -87,6 +87,9 @@ class FakeMessageRepo(MessageRepository):
         self.rows.append(row)
         return row
 
+    def delete(self, message_id):
+        self.rows = [r for r in self.rows if r["id"] != message_id]
+
     def list_for_session(self, session_id, limit=None):
         rows = [r for r in self.rows if r["session_id"] == session_id]
         return rows[-limit:] if limit else rows

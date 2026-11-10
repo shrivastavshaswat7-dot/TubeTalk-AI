@@ -5,11 +5,16 @@ from api_client import ApiError
 
 _CODE_MAP = {
     "BACKEND_UNREACHABLE":        "Can't reach the backend. Make sure it is running.",
-    "TIMEOUT":                    "This is taking longer than expected. Please try again.",
+    "TIMEOUT":                    "This is taking longer than expected. If the app was idle, the server may still be "
+                                  "waking up, which can take about a minute. Please try again.",
     "INVALID_VIDEO_URL":          "Please enter a valid YouTube link.",
     "VIDEO_NOT_FOUND":            "That video doesn't exist or was removed.",
     "VIDEO_RESTRICTED":           "That video is private, age-restricted or unavailable.",
-    "YOUTUBE_BLOCKED":            "YouTube couldn't be reached. Try again in a moment.",
+    # Not a network blip: YouTube refuses transcript requests from many cloud servers, so retrying
+    # the same video rarely helps. Say so plainly and point at videos that already work.
+    "YOUTUBE_BLOCKED":            "This video couldn't be processed: YouTube didn't allow this server to download its "
+                                  "transcript. This is a YouTube restriction on cloud-hosted apps, not a problem with "
+                                  "your link. Try another video, or open one of the ready videos below.",
     "NETWORK_ERROR":              "YouTube couldn't be reached. Try again in a moment.",
     "VIDEO_PROCESSING":           "This video is already being processed. Please wait a moment and try again.",
     "PROCESSING_FAILED":          "The video couldn't be processed. Please try again.",
