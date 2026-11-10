@@ -125,6 +125,22 @@ def test_signed_out_visitors_see_the_landing_page_and_nothing_is_called(supabase
     assert not at.sidebar.button  # no conversations, videos or sign-out
 
 
+def test_brand_lockup_on_landing_and_signed_in_sidebar(supabase, backend):
+    lockup = 'TubeTalk<span class="tt-wordmark-ai">AI</span>'
+    landing = "\n".join(str(m.value) for m in run().markdown)
+    assert lockup in landing and 'class="tt-logo" src="data:image/svg+xml;base64,' in landing
+    at = run(preset={"auth_session": session()})
+    assert lockup in "\n".join(str(m.value) for m in at.sidebar.markdown)
+
+
+def test_profile_name_is_escaped_in_the_account_block(supabase, backend):
+    hostile = session()
+    hostile["user"]["name"] = '<img src=x onerror="alert(1)">'
+    at = run(preset={"auth_session": hostile})
+    account = "\n".join(str(m.value) for m in at.sidebar.markdown)
+    assert "&lt;img src=x" in account and "<img src=x" not in account
+
+
 def test_sign_in_link_opens_a_new_tab(supabase, backend):
     """Streamlit Cloud's sandboxed frame can't navigate the page, and Google won't load in a frame."""
     page = "\n".join(str(m.value) for m in run().markdown)
@@ -161,7 +177,8 @@ def test_return_from_google_signs_in_and_opens_the_dashboard(supabase, backend):
     assert dict(at.query_params) == {}  # the one-time code is gone from the address bar
     assert "Your videos" in texts(at) and "list_videos" in backend  # dashboard, freshly loaded
     assert any(b.label == "Sign out" for b in at.sidebar.button)
-    assert "Ada Lovelace" in "\n".join(str(c.value) for c in at.sidebar.caption)
+    account = "\n".join(str(m.value) for m in at.sidebar.markdown)
+    assert "Ada Lovelace" in account and "ada@example.com" in account  # name and email in the account block
 
 
 @pytest.mark.parametrize("query,message", [

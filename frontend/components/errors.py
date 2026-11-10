@@ -15,7 +15,6 @@ _CODE_MAP = {
     "YOUTUBE_BLOCKED":            "This video couldn't be processed: YouTube didn't allow this server to download its "
                                   "transcript. This is a YouTube restriction on cloud-hosted apps, not a problem with "
                                   "your link. Try another video, or open one of the ready videos below.",
-    "NETWORK_ERROR":              "YouTube couldn't be reached. Try again in a moment.",
     # Worded so it never suggests that someone else is processing the same video.
     "VIDEO_PROCESSING":           "This video is being prepared right now. Please try again in a minute.",
     "AUTH_REQUIRED":              "Your session has expired. Please sign in again.",
@@ -40,8 +39,9 @@ _CODE_MAP = {
     "VALIDATION_ERROR":           "That input isn't valid.",
 }
 
-# The backend's own wording is the clearest for these, so it is shown as-is.
-_PASSTHROUGH = {"TRANSCRIPT_UNAVAILABLE", "UNSUPPORTED_LANGUAGE", "SUMMARY_UNAVAILABLE"}
+# The backend's own wording is the clearest for these, so it is shown as-is. NETWORK_ERROR says
+# which service couldn't be reached (YouTube or the transcript service).
+_PASSTHROUGH = {"TRANSCRIPT_UNAVAILABLE", "UNSUPPORTED_LANGUAGE", "SUMMARY_UNAVAILABLE", "NETWORK_ERROR"}
 
 
 def friendly_message(err: ApiError) -> str:

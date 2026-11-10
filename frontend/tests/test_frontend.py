@@ -143,11 +143,11 @@ def button(at, label):
 # ── Home ──────────────────────────────────────────────────────────────────────
 
 
-def test_home_renders_hero_and_only_completed_videos(api):
+def test_home_renders_dashboard_and_only_completed_videos(api):
     at = run_home()
     assert not at.exception
     page = texts(at)
-    assert "Talk to any YouTube video." in page
+    assert "Your library" in page and "Your videos" in page  # the dashboard
     assert "Me at the zoo" in page and "Broken video" not in page  # failed videos hidden
     assert at.session_state["page"] == "home"
 
@@ -759,7 +759,7 @@ def test_url_without_params_shows_home_even_if_a_workspace_was_open(api):
     del at.query_params["session"]
     at.run()
     assert at.session_state["page"] == "home"
-    assert "Talk to any YouTube video." in texts(at)
+    assert "Your library" in texts(at)
 
 
 def test_url_naming_another_conversation_restores_it(api):

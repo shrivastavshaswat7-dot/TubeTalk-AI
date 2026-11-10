@@ -10,29 +10,28 @@ gatherUsageStats = false
 # selector (components/theme.py), which still uses the menu's theme items.
 toolbarMode = "viewer"
 
-# Forest green × black × red. Black-green surfaces dominate, forest green marks identity, primary
-# actions and selection, and red is kept for small highlights (see components/style.py). Streamlit
-# offers the light/dark switch in its own Settings menu, so both variants are defined here.
+# TubeTalk red × black × white, with neutral greys. Red marks the brand, primary actions and the
+# selected item; everything else is black, white and grey (see components/style.py). The button red
+# (#E0002B) keeps white text readable (about 5:1); the logo uses the brighter brand red #FF0033.
+# Streamlit offers the light/dark switch in its own Settings menu, so both variants are defined here.
 [theme.dark]
-primaryColor = "#176B45"
-backgroundColor = "#101512"
-secondaryBackgroundColor = "#19231D"
-textColor = "#F2F4F0"
-borderColor = "#2A3730"
-linkColor = "#6FC596"
+primaryColor = "#E0002B"
+backgroundColor = "#0F0F0F"
+secondaryBackgroundColor = "#1C1C1C"
+textColor = "#F1F1F1"
+borderColor = "#2E2E2E"
+linkColor = "#FF5470"
 font = "sans serif"
-headingFont = "serif"
-baseRadius = "8px"
+headingFont = "sans serif"
+baseRadius = "10px"
 
-# Not an inversion: a pale sage paper with the same green and deep-green ink, dark enough that
-# Streamlit's faded captions stay readable on both surfaces.
 [theme.light]
-primaryColor = "#176B45"
-backgroundColor = "#F5F7F3"
-secondaryBackgroundColor = "#E7EDE7"
-textColor = "#0B1510"
-borderColor = "#CBD6CD"
-linkColor = "#125A39"
+primaryColor = "#E0002B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F2F2F2"
+textColor = "#0F0F0F"
+borderColor = "#E2E2E2"
+linkColor = "#C20025"
 font = "sans serif"
-headingFont = "serif"
-baseRadius = "8px"
+headingFont = "sans serif"
+baseRadius = "10px"

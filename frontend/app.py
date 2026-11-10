@@ -13,12 +13,12 @@ import streamlit as st
 
 import auth
 import state
-from components import style, theme
+from components import brand, style, theme
 from config import MISSING_API_URL_MESSAGE, MISSING_AUTH_MESSAGE, get_api_base_url, missing_auth_settings
 
 st.set_page_config(
     page_title="TubeTalk AI",
-    page_icon=":material/smart_display:",
+    page_icon=str(brand.LOGO_PATH),  # the TubeTalk AI logo as the browser-tab icon
     layout="wide",
     initial_sidebar_state="auto",  # expanded on desktop, collapsed on phones
 )

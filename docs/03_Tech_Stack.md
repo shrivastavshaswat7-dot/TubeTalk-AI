@@ -247,42 +247,36 @@ https://python.langchain.com/docs/introduction/
 
 # 6. YouTube Transcript Extraction
 
-## 6.1 youtube-transcript-api
+## 6.1 FreeTranscriptAPI
 
-**Category:** Python Library
+**Category:** REST API (called with `requests`)
 
-Purpose: Extract available transcripts from YouTube videos.
+Purpose: Get the captions of YouTube videos with their timestamps.
 
 Responsibilities:
 
-- Retrieve available transcripts.
-- Extract transcript text.
-- Preserve timestamps.
-- Handle transcript language selection.
-- Report transcript availability issues.
+- Return a video's caption lines (text, start time, duration) and their language.
+- Report videos without captions, rate limits and exhausted credits as distinct errors.
 
-Why this library?
+Why this service?
 
-It provides a Python interface for accessing available YouTube transcript data without implementing a complete transcription engine.
+YouTube blocks transcript requests from many cloud servers, including the hosted backend, so fetching
+captions directly (as the project first did with `youtube-transcript-api`) does not work in production.
+FreeTranscriptAPI fetches them for us; the backend normalises its response into the same internal
+transcript format, so chunking, embeddings and retrieval are unchanged.
 
 Knowledge Required:
 
-- Python package installation.
-- Function calls.
-- API-like response structures.
-- Lists and dictionaries.
-- Exception handling.
-- JSON-like data processing.
+- HTTP requests with an API key (`Authorization: Bearer …`, key in `FREE_TRANSCRIPT_API_KEY`).
+- JSON response handling.
+- Mapping HTTP error codes to clear user-facing errors.
 
 Important Limitations:
 
-- Not every video has an accessible transcript.
-- Captions may be disabled.
-- Access may be restricted.
-- YouTube may change its access behavior.
-- Availability and reliability must be tested.
-
-This library is not equivalent to the official YouTube Data API.
+- Every lookup costs one credit, including lookups for videos without captions, so failed lookups are
+  never retried automatically. Videos that were already processed are reused and never fetched again.
+- Not every video has captions; only English transcripts are accepted.
+- Availability depends on a third-party service.
 
 ---
 
@@ -612,7 +606,7 @@ The following packages are expected to be used during implementation.
 | langchain-community | Community integrations |
 | langchain-text-splitters | Text chunking |
 | langchain-groq | Groq integration |
-| youtube-transcript-api | Transcript extraction |
+| requests (FreeTranscriptAPI) | Transcript extraction |
 | fastembed (ONNX Runtime) | Embeddings |
 | supabase | Supabase client |
 | python-dotenv | Environment variables |

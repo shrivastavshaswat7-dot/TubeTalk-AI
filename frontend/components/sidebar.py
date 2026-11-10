@@ -1,13 +1,15 @@
 """Shared sidebar rendered on every page."""
 import streamlit as st
 
+import html
+
 import api_client as ac
 import auth
 import state
 from api_client import ApiError
-from components import style
+from components import brand, style
 from components.errors import friendly_message
-from components.format import fmt_datetime, md_escape, truncate
+from components.format import fmt_datetime, truncate
 from components.videos import latest_session_id, load_recent_videos, open_video
 
 
@@ -127,7 +129,7 @@ def _render_status() -> None:
 
 def render_sidebar(navigate_to_home=None, navigate_to_workspace=None, on_home: bool = False) -> None:
     with st.sidebar:
-        style.wordmark()
+        st.markdown(brand.lockup_html("md"), unsafe_allow_html=True)  # static markup of our own
         st.write("")
 
         if not on_home and navigate_to_home:
@@ -154,6 +156,15 @@ def _render_account() -> None:
     if not user:
         return
     st.divider()
-    st.caption(md_escape(user["name"] if user["name"] == user.get("email") else f"{user['name']} · {user.get('email') or ''}"))
+    # The name and email come from the Google profile: escaped before they go into this markup.
+    name, email = user.get("name") or "", user.get("email") or ""
+    initial = html.escape((name or email or "?")[:1].upper())
+    second_line = f'<div class="tt-account-email">{html.escape(email)}</div>' if email and email != name else ""
+    st.markdown(
+        f'<div class="tt-account"><div class="tt-avatar" aria-hidden="true">{initial}</div>'
+        f'<div class="tt-account-text"><div class="tt-account-name">{html.escape(name or email)}</div>'
+        f"{second_line}</div></div>",
+        unsafe_allow_html=True,
+    )
     if st.button("Sign out", icon=":material/logout:", type="tertiary", key="sign_out"):
         auth.sign_out()
