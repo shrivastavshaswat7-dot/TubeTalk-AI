@@ -2,7 +2,8 @@
 
 1. "Continue with Google" links to Supabase's /authorize with a PKCE code challenge. The matching
    code verifier never leaves this server: it is kept here, keyed by a random one-time `auth_state`
-   that is added to the return address.
+   that is added to the return address. Each state works once; the landing page swaps its link for a
+   new one as soon as the old state is used (e.g. by a sign-in in another tab) or the link gets old.
 2. Google -> Supabase -> back to APP_URL?auth_state=…&code=…. The code and the verifier are exchanged
    for a Supabase session (access + refresh token), kept only in this browser session's
    st.session_state. The code is removed from the address bar straight away.
@@ -26,9 +27,16 @@ import state
 from config import get_setting
 
 KEY_SESSION = "auth_session"  # {"access_token", "refresh_token", "expires_at", "user": {...}}
-KEY_LOGIN_URL = "auth_login_url"  # (created_at, url) prepared for this browser session
+KEY_LOGIN_URL = "auth_login_url"  # (created_at, auth_state, url) prepared for this browser session
 
-PENDING_TTL_SECONDS = 600  # a started sign-in must finish within 10 minutes
+# A sign-in link carries a one-time auth_state. It is valid for PENDING_TTL_SECONDS after the link was
+# drawn, and the landing page redraws its link (LINK_CHECK_SECONDS) once the link is older than
+# LINK_MAX_AGE_SECONDS or its state has been used — e.g. in another tab that already signed in. So the
+# link on screen is always unused and leaves at least MIN_SIGN_IN_SECONDS to finish on Google's page.
+PENDING_TTL_SECONDS = 900
+LINK_MAX_AGE_SECONDS = 120
+LINK_CHECK_SECONDS = 30
+MIN_SIGN_IN_SECONDS = PENDING_TTL_SECONDS - LINK_MAX_AGE_SECONDS - LINK_CHECK_SECONDS  # 12.5 minutes
 REFRESH_MARGIN_SECONDS = 60  # refresh the access token this long before it expires
 TIMEOUT_SECONDS = 15
 
@@ -57,6 +65,14 @@ def _remember(auth_state: str, verifier: str) -> None:
         for key in [k for k, (at, _) in store["items"].items() if now - at > PENDING_TTL_SECONDS]:
             del store["items"][key]
         store["items"][auth_state] = (now, verifier)
+
+
+def _is_pending(auth_state: str) -> bool:
+    """True while this state is unused and fresh (a read only: it is not consumed)."""
+    store = _pending_store()
+    with store["lock"]:
+        item = store["items"].get(auth_state)
+    return item is not None and time.time() - item[0] <= PENDING_TTL_SECONDS
 
 
 def _take(auth_state: str) -> str | None:
@@ -127,10 +143,15 @@ def _token_request(grant_type: str, payload: dict) -> dict | None:
 
 
 def login_url() -> str:
-    """The "Continue with Google" address for this browser session (reused while it is fresh)."""
+    """The "Continue with Google" address for this browser session.
+
+    Reused only while it is recent AND its one-time state is still unused. A state used by a sign-in
+    (in this tab or another one) is never offered again; an older link is replaced by a new one, while
+    its own state stays valid until it expires, for a sign-in already in progress on Google's page."""
     cached = st.session_state.get(KEY_LOGIN_URL)
-    if cached and time.time() - cached[0] < PENDING_TTL_SECONDS - 60:
-        return cached[1]
+    if (cached and len(cached) == 3 and time.time() - cached[0] < LINK_MAX_AGE_SECONDS
+            and _is_pending(cached[1])):
+        return cached[2]
     verifier = secrets.token_urlsafe(64)
     auth_state = secrets.token_urlsafe(24)
     _remember(auth_state, verifier)
@@ -141,7 +162,7 @@ def login_url() -> str:
         "code_challenge": code_challenge(verifier),
         "code_challenge_method": "s256",
     })
-    st.session_state[KEY_LOGIN_URL] = (time.time(), url)
+    st.session_state[KEY_LOGIN_URL] = (time.time(), auth_state, url)
     return url
 
 
@@ -152,11 +173,14 @@ def handle_callback() -> str | None:
     if not (code or auth_state or error):
         return None
     st.query_params.clear()  # never leave the one-time code in the address bar
+    # Whatever happens next, this tab's next sign-in starts with a brand-new link and state.
+    st.session_state.pop(KEY_LOGIN_URL, None)
     if error or not code:
         return "Google sign-in was cancelled or didn't complete. Please try again."
-    verifier = _take(auth_state) if auth_state else None
+    verifier = _take(auth_state) if auth_state else None  # strictly single use
     if verifier is None:
-        return "That sign-in link has expired or was already used. Please try again."
+        return ("That sign-in link has expired or was already used. A fresh one is ready: select "
+                "Continue with Google to sign in again.")
     session = _token_request("pkce", {"auth_code": code, "code_verifier": verifier})
     if session is None:
         return "Sign-in couldn't be completed. Please try again."

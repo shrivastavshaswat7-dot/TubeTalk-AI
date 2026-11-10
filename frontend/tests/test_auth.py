@@ -160,6 +160,101 @@ def test_sign_in_link_uses_pkce_and_a_one_time_state(supabase, backend):
     assert auth._take(state_value) is None  # one use only
 
 
+def link_state(at) -> str:
+    redirect_to = parse_qs(urlparse(google_link(at)).query)["redirect_to"][0]
+    return parse_qs(urlparse(redirect_to).query)["auth_state"][0]
+
+
+def age_pending(state_value: str, seconds: float) -> None:
+    """Pretend this sign-in was started `seconds` ago (the clock itself is left alone)."""
+    store = auth._pending_store()
+    with store["lock"]:
+        started, verifier = store["items"][state_value]
+        store["items"][state_value] = (started - seconds, verifier)
+
+
+# ── Regression: a landing tab left open, and slow sign-ins ───────────────────
+
+
+def test_open_landing_tab_redraws_while_its_link_is_unused_and_recent(supabase, backend):
+    at = run()
+    first = link_state(at)
+    at.run()  # e.g. the periodic redraw of the sign-in link
+    assert link_state(at) == first and auth._is_pending(first)
+
+
+def test_reused_landing_tab_never_offers_a_state_already_used_in_another_tab(supabase, backend):
+    """The reported bug: account 1 signs in from this tab's link (the sign-in finishes in a new tab);
+    the original tab must then offer a NEW link for account 2, not the used one."""
+    landing = run()
+    used = link_state(landing)
+    # The return from Google arrives in another tab (a new browser session):
+    supabase.responses["pkce"] = FakeResp(200, token_response())
+    other_tab = run({"code": "code-1", "auth_state": used})
+    assert signed_in(other_tab) and not auth._is_pending(used)
+
+    landing.run()  # the landing tab redraws its link
+    fresh = link_state(landing)
+    assert fresh != used and auth._is_pending(fresh)
+
+    supabase.responses["pkce"] = FakeResp(200, token_response(user=OTHER))
+    second = run({"code": "code-2", "auth_state": fresh})  # account 2 signs in with the new link
+    assert signed_in(second) and second.session_state["auth_session"]["user"]["id"] == OTHER["id"]
+
+
+def test_a_used_state_is_refused_the_second_time(supabase, backend):
+    """Strictly single use: replaying a return from Google never signs in again."""
+    auth._remember("state-once", "verifier-once")
+    supabase.responses["pkce"] = FakeResp(200, token_response())
+    assert signed_in(run({"code": "code-1", "auth_state": "state-once"}))
+    replay = run({"code": "code-1", "auth_state": "state-once"})
+    assert not signed_in(replay) and "expired or was already used" in texts(replay)
+    assert [c.params for c in supabase.calls] == [{"grant_type": "pkce"}]  # exchanged only once
+
+
+def test_old_link_is_replaced_but_a_sign_in_already_started_with_it_can_finish(supabase, backend):
+    at = run()
+    old = link_state(at)
+    created, state_value, url = at.session_state[auth.KEY_LOGIN_URL]
+    at.session_state[auth.KEY_LOGIN_URL] = (created - auth.LINK_MAX_AGE_SECONDS - 1, state_value, url)
+    at.run()
+    assert link_state(at) != old  # the page now offers a newer link…
+    supabase.responses["pkce"] = FakeResp(200, token_response())
+    assert signed_in(run({"code": "code-1", "auth_state": old}))  # …and the older one still works once
+
+
+def test_slow_sign_in_on_googles_page_still_succeeds(supabase, backend):
+    """Worst case: the link was redrawn just before it was clicked, then e.g. a password and 2FA."""
+    assert auth.MIN_SIGN_IN_SECONDS >= 12 * 60
+    at = run()
+    state_value = link_state(at)
+    age_pending(state_value, auth.LINK_MAX_AGE_SECONDS + auth.LINK_CHECK_SECONDS + 12 * 60)
+    supabase.responses["pkce"] = FakeResp(200, token_response())
+    assert signed_in(run({"code": "code-1", "auth_state": state_value}))
+
+
+def test_expired_sign_in_offers_a_fresh_sign_in(supabase, backend):
+    at = run()
+    expired = link_state(at)
+    age_pending(expired, auth.PENDING_TTL_SECONDS + 1)
+    back = run({"code": "code-1", "auth_state": expired})
+    assert not signed_in(back) and supabase.calls == []
+    assert "expired or was already used" in texts(back) and "Continue with Google" in texts(back)
+    fresh = link_state(back)
+    assert fresh != expired and auth._is_pending(fresh)  # a brand-new, usable link right there
+
+
+def test_failed_return_in_a_tab_drops_that_tabs_old_link(supabase, backend):
+    """A tab that had a link cached and then receives a bad return starts over with a new state."""
+    at = run()
+    cached = link_state(at)
+    at.query_params["code"] = "code-1"
+    at.query_params["auth_state"] = "never-issued"
+    at.run()
+    assert "expired or was already used" in texts(at)
+    assert link_state(at) != cached
+
+
 # ── Returning from Google ────────────────────────────────────────────────────
 
 

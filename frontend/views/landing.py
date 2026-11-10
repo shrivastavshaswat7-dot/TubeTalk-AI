@@ -26,6 +26,22 @@ _PREVIEW = (
 )
 
 
+@st.fragment(run_every=auth.LINK_CHECK_SECONDS)
+def _sign_in_link() -> None:
+    """Redrawn every LINK_CHECK_SECONDS so a tab left open never offers a used or stale link (its
+    one-time state may have been used by a sign-in in another tab)."""
+    url = html.escape(auth.login_url(), quote=True)
+    # A new tab: on Streamlit Community Cloud the app runs in a sandboxed frame that may not
+    # navigate the whole page, and Google's sign-in page refuses to load inside a frame. The new
+    # tab comes back signed in (the PKCE verifier is kept on the server, not in this session).
+    st.markdown(
+        f'<a class="tt-google" href="{url}" target="_blank" rel="noopener">Continue with Google</a>'
+        '<div class="tt-cta-note">Sign-in opens in a new tab. Your videos and conversations stay '
+        "private to your account.</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def show(error: str | None = None) -> None:
     # Static markup; the only dynamic values are our own logo and sign-in address (escaped).
     st.markdown(f'<div class="tt-nav">{brand.lockup_html("lg")}</div>', unsafe_allow_html=True)
@@ -41,16 +57,7 @@ def show(error: str | None = None) -> None:
         )
         if error:
             st.error(error, icon=":material/error:")
-        url = html.escape(auth.login_url(), quote=True)
-        # A new tab: on Streamlit Community Cloud the app runs in a sandboxed frame that may not
-        # navigate the whole page, and Google's sign-in page refuses to load inside a frame. The new
-        # tab comes back signed in (the PKCE verifier is kept on the server, not in this session).
-        st.markdown(
-            f'<a class="tt-google" href="{url}" target="_blank" rel="noopener">Continue with Google</a>'
-            '<div class="tt-cta-note">Sign-in opens in a new tab. Your videos and conversations stay '
-            "private to your account.</div>",
-            unsafe_allow_html=True,
-        )
+        _sign_in_link()
     with preview:
         st.markdown(_PREVIEW.format(logo=brand.logo_data_uri()), unsafe_allow_html=True)
 
