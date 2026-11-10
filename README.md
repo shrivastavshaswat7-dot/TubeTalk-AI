@@ -95,6 +95,9 @@ Never commit real values: `backend/.env` and `.streamlit/secrets.toml` are git-i
 | `SUPABASE_KEY` | backend | yes | Supabase **service-role** key (backend only, never the frontend) |
 | `FREE_TRANSCRIPT_API_KEY` | backend | yes, to process new videos | FreeTranscriptAPI key; without it, already processed videos still work |
 | `API_BASE_URL` | frontend | yes | Backend address, e.g. `http://localhost:8000` locally; without it the app shows a configuration error |
+| `SUPABASE_URL` | frontend | yes | Same Supabase project URL, for Google sign-in |
+| `SUPABASE_PUBLISHABLE_KEY` | frontend | yes | Supabase **publishable (anon)** key: public by design, never the service-role key |
+| `APP_URL` | frontend | yes | This app's own address (Google sign-in returns here), e.g. `http://localhost:8501` |
 | `ALLOWED_ORIGINS`, `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K`, `MIN_SIMILARITY`, `FULL_CONTEXT_MAX_TOKENS`, `GROQ_MAX_TOKENS`, `GROQ_REASONING_EFFORT`, `WARMUP_EMBEDDINGS` | backend | no | Tuning; defaults are in `.env.example` |
 
 ## Run locally
@@ -110,9 +113,17 @@ $env:API_BASE_URL = "http://localhost:8000"
 cd frontend ; python -m streamlit run app.py
 ```
 
-Open http://localhost:8501. The frontend reads the backend address from `API_BASE_URL`
-(environment variable or `frontend/.streamlit/secrets.toml`, see the `.example` file); if it is
-missing, the app shows a configuration error instead of guessing.
+Open http://localhost:8501. The frontend reads `API_BASE_URL`, `SUPABASE_URL`,
+`SUPABASE_PUBLISHABLE_KEY` and `APP_URL` from its environment or `frontend/.streamlit/secrets.toml`
+(see the `.example` file); if one is missing, the app shows a configuration error instead of guessing.
+
+**Sign-in setup (once):** in Google Cloud, create an OAuth client (type *Web application*) with the
+redirect URI `https://<project>.supabase.co/auth/v1/callback`. In Supabase → Authentication →
+Providers, enable Google with that client. In Authentication → URL Configuration, add the app's
+address with a wildcard to the redirect URLs, e.g. `http://localhost:8501/**` and
+`https://<app>.streamlit.app/**`. Then run `database/migrations/003_user_ownership.sql`. A database
+that already has videos and conversations from before sign-in existed can give them to their owner
+with `004_backfill_owner.sql`, run once after that person's first sign-in.
 
 ## Tests
 
@@ -136,8 +147,10 @@ API and FreeTranscriptAPI (spending credits) and write (temporary) rows to Supab
      `FREE_TRANSCRIPT_API_KEY`.
   3. Deploy; `https://<service>.onrender.com/health` should return `healthy`.
 - **Frontend → Streamlit Community Cloud.** New app from this GitHub repository, main file
-  `frontend/app.py`, Python 3.12, and the secret `API_BASE_URL = "https://<service>.onrender.com"`.
-  The frontend only installs `frontend/requirements.txt`.
+  `frontend/app.py`, Python 3.12, and the secrets `API_BASE_URL = "https://<service>.onrender.com"`,
+  `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `APP_URL = "https://<app>.streamlit.app"`.
+  The frontend only installs `frontend/requirements.txt`. Deploy the backend and frontend
+  together: every backend API call now requires a signed-in user.
 
 ## Limitations
 
@@ -146,8 +159,10 @@ API and FreeTranscriptAPI (spending credits) and write (temporary) rows to Supab
   lookups for videos without captions; when the credits run out, new videos can't be processed
   (already processed videos keep working). Failed lookups are not retried automatically.
   Already-processed videos are reused and never fetched again.
-- **No login.** Anyone with the link can process videos and chat, which spends the Groq quota and
-  adds rows to Supabase. Fine for a demo; add authentication before real public use.
+- **Anyone with a Google account can sign up,** and every user's new videos and questions spend the
+  shared FreeTranscriptAPI credits and Groq quota (there are no per-user limits).
+- **A full page reload signs you out** (Streamlit can't keep a login cookie); signing in again is
+  one click.
 - **Groq free tier:** about 8,000 tokens per minute. Long transcripts sent whole (~25-minute
   videos) can hit it after one or two quick questions; the app then asks you to retry shortly.
 - **English transcripts only;** auto-generated captions work but misspell names.

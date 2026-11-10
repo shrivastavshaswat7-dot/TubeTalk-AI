@@ -5,10 +5,9 @@ from types import SimpleNamespace as NS
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import deps
 from app.core.errors import AppError
 from app.main import app
-from tests.fakes import FakeChunkRepo, FakeInsightsRepo, FakeVideoRepo, new_id
+from tests.fakes import AUTH_A, FakeChunkRepo, FakeInsightsRepo, FakeVideoRepo, install_overrides, new_id
 
 URL = "https://www.youtube.com/watch?v=abcdefghijk"
 FINAL = {
@@ -21,13 +20,12 @@ FINAL = {
 @pytest.fixture
 def env(monkeypatch):
     r = NS(videos=FakeVideoRepo(), insights=FakeInsightsRepo(), chunks=FakeChunkRepo(), llm_calls=[])
-    app.dependency_overrides[deps.get_video_repo] = lambda: r.videos
-    app.dependency_overrides[deps.get_insights_repo] = lambda: r.insights
-    app.dependency_overrides[deps.get_chunk_repo] = lambda: r.chunks
+    install_overrides(app, r)
 
     r.vid = new_id()
     r.videos.rows[r.vid] = {"id": r.vid, "youtube_video_id": "abcdefghijk", "youtube_url": URL,
                             "processing_status": "completed", "title": "T"}
+    r.library.add(r.vid)
     r.chunks.by_video[r.vid] = [
         {"id": new_id(), "chunk_index": i, "content": f"content {i}", "start_time": i * 60.0, "end_time": i * 60.0 + 55}
         for i in range(4)
@@ -42,7 +40,7 @@ def env(monkeypatch):
     app.dependency_overrides.clear()
 
 
-client = TestClient(app)
+client = TestClient(app, headers=AUTH_A)
 
 
 def test_get_insights_generates_then_serves_cache(env):
@@ -136,6 +134,7 @@ def test_insights_are_per_video(env):
     env.videos.rows[other] = {"id": other, "youtube_video_id": "zzzzzzzzzzz", "youtube_url": "https://www.youtube.com/watch?v=zzzzzzzzzzz",
                               "processing_status": "completed"}
     env.chunks.by_video[other] = [{"id": new_id(), "chunk_index": 0, "content": "other", "start_time": 0.0, "end_time": 5.0}]
+    env.library.add(other)
     client.get(f"/api/videos/{env.vid}/insights")
     assert other not in env.insights.rows
     assert client.get(f"/api/videos/{other}/insights").json()["cached"] is False

@@ -155,6 +155,19 @@ h1, h2, h3 { letter-spacing: -0.015em; }
 .tt-hero h1 { font-size: 2.6rem; line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 .5rem 0; padding: 0; }
 .tt-hero .tt-sub { font-size: 1.05rem; line-height: 1.5; opacity: .75; margin: 0 0 1.4rem 0; max-width: 40rem; }
 
+/* Landing page (signed out) */
+.tt-landing { max-width: 46rem; margin: 2.5rem 0 1.6rem 0; }
+.tt-landing .tt-wordmark { margin-bottom: 1.4rem; }
+.tt-landing h1 { font-size: 2.9rem; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 .7rem 0; padding: 0; }
+.tt-landing .tt-sub { font-size: 1.12rem; line-height: 1.55; opacity: .78; }
+a.tt-google { display: inline-flex; align-items: center; gap: .6rem; padding: .7rem 1.25rem;
+              border-radius: 999px; background: var(--tt-green); color: #F2F4F0 !important;
+              font-weight: 600; text-decoration: none !important; transition: background-color .15s ease; }
+a.tt-google:hover { background: var(--tt-green-hover); color: #FFFFFF !important; }
+a.tt-google:focus-visible { outline: 2px solid color-mix(in srgb, var(--tt-green) 70%, currentColor); outline-offset: 2px; }
+a.tt-google::before { content: "G"; display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem;
+                      border-radius: 50%; background: #FFFFFF; color: #176B45; font-weight: 700; font-size: .85rem; }
+
 @keyframes tt-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { [data-testid="stChatMessage"] { animation: none; } }
 
@@ -162,6 +175,8 @@ h1, h2, h3 { letter-spacing: -0.015em; }
    video above a shorter chat pane. */
 @media (max-width: 640px) {
   .tt-hero h1 { font-size: 1.9rem; }
+  .tt-landing { margin-top: 1.2rem; }
+  .tt-landing h1 { font-size: 2.1rem; }
   [data-testid="stMain"] [data-testid="stMarkdownContainer"] h2 { font-size: 1.45rem; }
   .st-key-tt-history, .st-key-tt-insights,
   [data-testid="stLayoutWrapper"]:has(> .st-key-tt-history),

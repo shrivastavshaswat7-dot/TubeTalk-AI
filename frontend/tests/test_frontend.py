@@ -11,6 +11,7 @@ import requests
 from streamlit.testing.v1 import AppTest
 
 import api_client
+import auth
 from api_client import ApiError
 from components import format as fmt
 from components.errors import friendly_message
@@ -23,6 +24,8 @@ SID = "33333333-3333-4333-8333-333333333333"
 SID_2 = "44444444-4444-4444-8444-444444444444"
 URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
 LONG_TEXT = ("All right, so here we are, in front of the elephants. " * 16)[:800]
+SIGNED_IN = {"access_token": "test-access", "refresh_token": "test-refresh", "expires_at": 4102444800.0,
+             "user": {"id": "aaaaaaaa-0000-4000-8000-00000000000a", "email": "a@example.com", "name": "Ada"}}
 
 VIDEO = {
     "id": VID, "youtube_video_id": "jNQXAC9IVRw", "youtube_url": URL, "title": "Me at the zoo",
@@ -87,6 +90,8 @@ def api(monkeypatch):
 
         monkeypatch.setattr(api_client, name, fake)
 
+    # UI tests run as a signed-in user (sign-in itself is covered in test_auth.py).
+    monkeypatch.setattr(auth, "current_session", lambda: SIGNED_IN)
     patch("check_health", (True, "TubeTalk AI"))
     patch("list_videos", {"success": True, "videos": [VIDEO, FAILED_VIDEO]})
     patch("get_video", {"success": True, "video": VIDEO})

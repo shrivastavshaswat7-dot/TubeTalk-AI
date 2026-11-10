@@ -1,6 +1,11 @@
 """Thin repositories over Supabase. These are the only code that touches the database.
 
 Rows are returned as plain dicts. Any database failure becomes AppError DATABASE_ERROR.
+
+Ownership: videos and transcript_chunks are shared, reusable content (one copy per YouTube video).
+Everything private is reached through a repository bound to one user (`user_id=`): the library,
+chat sessions (and so their messages) and insights. Those repositories filter every read and stamp
+every write with that user, so another user's rows are simply never found.
 """
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -83,22 +88,63 @@ class VideoRepository:
             )
 
 
-class SessionRepository:
-    def __init__(self, client=None):
+class LibraryRepository:
+    """One user's video library (table user_videos)."""
+
+    def __init__(self, client=None, *, user_id: str):
         self.client = client or get_client()
+        self.user_id = user_id
+
+    def has(self, video_id: str) -> bool:
+        with _db_errors():
+            return bool(
+                self.client.table("user_videos").select("video_id")
+                .eq("user_id", self.user_id).eq("video_id", video_id).limit(1).execute().data
+            )
+
+    def add(self, video_id: str) -> None:
+        """Idempotent: adding a video that is already in the library changes nothing."""
+        with _db_errors():
+            self.client.table("user_videos").upsert(
+                {"user_id": self.user_id, "video_id": video_id},
+                on_conflict="user_id,video_id", ignore_duplicates=True,
+            ).execute()
+
+    def list_videos(self, limit: int = 20) -> list[dict]:
+        """The user's videos, most recently added first (never ordered by other users' activity)."""
+        with _db_errors():
+            rows = (
+                self.client.table("user_videos")
+                .select("created_at, video:videos(*)")
+                .eq("user_id", self.user_id)
+                .order("created_at", desc=True)
+                .limit(limit)
+                .execute()
+                .data
+            )
+        return [r["video"] for r in rows if r.get("video")]
+
+
+class SessionRepository:
+    """One user's chat sessions."""
+
+    def __init__(self, client=None, *, user_id: str):
+        self.client = client or get_client()
+        self.user_id = user_id
 
     def create(self, video_id: str, title: str = "New Conversation") -> dict:
         with _db_errors():
             return _first(
                 self.client.table("chat_sessions")
-                .insert({"video_id": video_id, "session_title": title})
+                .insert({"video_id": video_id, "session_title": title, "user_id": self.user_id})
                 .execute()
             )
 
     def get(self, session_id: str) -> dict | None:
         with _db_errors():
             return _first(
-                self.client.table("chat_sessions").select("*").eq("id", session_id).limit(1).execute()
+                self.client.table("chat_sessions").select("*")
+                .eq("id", session_id).eq("user_id", self.user_id).limit(1).execute()
             )
 
     def get_for_video(self, session_id: str, video_id: str) -> dict:
@@ -118,6 +164,7 @@ class SessionRepository:
                 self.client.table("chat_sessions")
                 .select("*")
                 .eq("video_id", video_id)
+                .eq("user_id", self.user_id)
                 .order("updated_at", desc=True)
                 .execute()
                 .data
@@ -126,7 +173,10 @@ class SessionRepository:
     def delete(self, session_id: str) -> bool:
         """Deletes the session and (via cascade) its messages; never the video or chunks."""
         with _db_errors():
-            return bool(self.client.table("chat_sessions").delete().eq("id", session_id).execute().data)
+            return bool(
+                self.client.table("chat_sessions").delete()
+                .eq("id", session_id).eq("user_id", self.user_id).execute().data
+            )
 
 
 class MessageRepository:
@@ -223,29 +273,36 @@ class ChunkRepository:
 
 
 class InsightsRepository:
-    """Cached insights, one row per video (table video_insights)."""
+    """One user's cached insights, one row per (user, video) (table user_video_insights). The legacy
+    shared table video_insights is no longer used by the app; it is kept for the backfill."""
 
-    def __init__(self, client=None):
+    TABLE = "user_video_insights"
+    CONFLICT = "user_id,video_id"
+
+    def __init__(self, client=None, *, user_id: str):
         self.client = client or get_client()
+        self.user_id = user_id
 
     def get(self, video_id: str) -> dict | None:
         with _db_errors():
             return _first(
-                self.client.table("video_insights").select("*").eq("video_id", video_id).limit(1).execute()
+                self.client.table(self.TABLE).select("*")
+                .eq("user_id", self.user_id).eq("video_id", video_id).limit(1).execute()
             )
 
     def mark_generating(self, video_id: str) -> None:
         """Only touches status/error, so previously generated content survives a regeneration."""
         with _db_errors():
-            self.client.table("video_insights").upsert(
-                {"video_id": video_id, "status": "generating", "error_message": None},
-                on_conflict="video_id",
+            self.client.table(self.TABLE).upsert(
+                {"user_id": self.user_id, "video_id": video_id, "status": "generating", "error_message": None},
+                on_conflict=self.CONFLICT,
             ).execute()
 
     def save_completed(
         self, video_id: str, summary: str, key_takeaways: list[str], topics: list[dict], model: str
     ) -> dict:
         row = {
+            "user_id": self.user_id,
             "video_id": video_id,
             "status": "completed",
             "summary": summary,
@@ -256,13 +313,14 @@ class InsightsRepository:
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
         with _db_errors():
-            return _first(self.client.table("video_insights").upsert(row, on_conflict="video_id").execute())
+            return _first(self.client.table(self.TABLE).upsert(row, on_conflict=self.CONFLICT).execute())
 
     def save_failed(self, video_id: str, message: str) -> None:
         """A failed regeneration keeps the previous completed insights; a first failure is 'failed'."""
         existing = self.get(video_id)
         status = "completed" if existing and existing.get("summary") else "failed"
         with _db_errors():
-            self.client.table("video_insights").upsert(
-                {"video_id": video_id, "status": status, "error_message": message}, on_conflict="video_id"
+            self.client.table(self.TABLE).upsert(
+                {"user_id": self.user_id, "video_id": video_id, "status": status, "error_message": message},
+                on_conflict=self.CONFLICT,
             ).execute()

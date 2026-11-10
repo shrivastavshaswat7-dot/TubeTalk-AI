@@ -2,11 +2,12 @@
 import streamlit as st
 
 import api_client as ac
+import auth
 import state
 from api_client import ApiError
 from components import style
 from components.errors import friendly_message
-from components.format import fmt_datetime, truncate
+from components.format import fmt_datetime, md_escape, truncate
 from components.videos import latest_session_id, load_recent_videos, open_video
 
 
@@ -144,3 +145,15 @@ def render_sidebar(navigate_to_home=None, navigate_to_workspace=None, on_home: b
             _render_videos(navigate_to_workspace)
 
         _render_status()
+        _render_account()
+
+
+def _render_account() -> None:
+    """Who is signed in, and Sign out (which also clears everything cached for them)."""
+    user = auth.user()
+    if not user:
+        return
+    st.divider()
+    st.caption(md_escape(user["name"] if user["name"] == user.get("email") else f"{user['name']} · {user.get('email') or ''}"))
+    if st.button("Sign out", icon=":material/logout:", type="tertiary", key="sign_out"):
+        auth.sign_out()

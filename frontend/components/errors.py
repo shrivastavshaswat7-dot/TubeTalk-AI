@@ -16,7 +16,10 @@ _CODE_MAP = {
                                   "transcript. This is a YouTube restriction on cloud-hosted apps, not a problem with "
                                   "your link. Try another video, or open one of the ready videos below.",
     "NETWORK_ERROR":              "YouTube couldn't be reached. Try again in a moment.",
-    "VIDEO_PROCESSING":           "This video is already being processed. Please wait a moment and try again.",
+    # Worded so it never suggests that someone else is processing the same video.
+    "VIDEO_PROCESSING":           "This video is being prepared right now. Please try again in a minute.",
+    "AUTH_REQUIRED":              "Your session has expired. Please sign in again.",
+    "AUTH_UNAVAILABLE":           "Sign-in can't be checked right now. Please try again in a moment.",
     "PROCESSING_FAILED":          "The video couldn't be processed. Please try again.",
     "EMBEDDING_ERROR":            "The video couldn't be processed. Please try again.",
     "VIDEO_NOT_READY":            "This video hasn't finished processing.",

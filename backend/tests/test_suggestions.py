@@ -4,13 +4,21 @@ from types import SimpleNamespace as NS
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import deps
 from app.core.config import get_settings
 from app.main import app
 from app.schemas.chunk import RetrievedChunk
 from app.services import suggestions as sug
 from app.services.suggestions import topic_question, validated_suggestions
-from tests.fakes import FakeChunkRepo, FakeInsightsRepo, FakeMessageRepo, FakeSessionRepo, FakeVideoRepo, new_id
+from tests.fakes import (
+    AUTH_A,
+    FakeChunkRepo,
+    FakeInsightsRepo,
+    FakeMessageRepo,
+    FakeSessionRepo,
+    FakeVideoRepo,
+    install_overrides,
+    new_id,
+)
 
 URL = "https://www.youtube.com/watch?v=abcdefghijk"
 
@@ -123,14 +131,13 @@ def test_validation_is_read_only(env, monkeypatch):
 
 # ── endpoint ──────────────────────────────────────────────────────────────────
 
-client = TestClient(app)
+client = TestClient(app, headers=AUTH_A)
 
 
 @pytest.fixture
 def api(env):
-    app.dependency_overrides[deps.get_video_repo] = lambda: env.videos
-    app.dependency_overrides[deps.get_insights_repo] = lambda: env.insights
-    app.dependency_overrides[deps.get_chunk_repo] = lambda: env.chunks
+    install_overrides(app, env)
+    env.library.add(env.vid)
     yield env
     app.dependency_overrides.clear()
 

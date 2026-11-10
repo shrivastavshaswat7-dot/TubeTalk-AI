@@ -9,6 +9,8 @@ from app.db import client as db_client
 from app.db.repositories import (
     INSERT_BATCH_SIZE,
     ChunkRepository,
+    InsightsRepository,
+    LibraryRepository,
     MessageRepository,
     SessionRepository,
     VideoRepository,
@@ -51,27 +53,77 @@ def test_client_not_configured(monkeypatch):
 
 def test_session_for_video_ok():
     client, _ = fake_client([{"id": "s1", "video_id": "v1"}])
-    assert SessionRepository(client).get_for_video("s1", "v1")["id"] == "s1"
+    assert SessionRepository(client, user_id="u1").get_for_video("s1", "v1")["id"] == "s1"
 
 
 def test_session_not_found():
     client, _ = fake_client([])
     with pytest.raises(AppError) as exc:
-        SessionRepository(client).get_for_video("s1", "v1")
+        SessionRepository(client, user_id="u1").get_for_video("s1", "v1")
     assert exc.value.error == "SESSION_NOT_FOUND" and exc.value.status_code == 404
 
 
 def test_session_video_mismatch():
     client, _ = fake_client([{"id": "s1", "video_id": "OTHER"}])
     with pytest.raises(AppError) as exc:
-        SessionRepository(client).get_for_video("s1", "v1")
+        SessionRepository(client, user_id="u1").get_for_video("s1", "v1")
     assert exc.value.error == "SESSION_VIDEO_MISMATCH"
 
 
 def test_session_delete_only_touches_sessions_table():
     client, _ = fake_client([{"id": "s1"}])
-    assert SessionRepository(client).delete("s1") is True
+    assert SessionRepository(client, user_id="u1").delete("s1") is True
     client.table.assert_called_once_with("chat_sessions")
+
+
+# ---------------------------------------------------------------- ownership: every query is per user
+
+
+def eq_calls(chain):
+    return [c.args for c in chain.eq.call_args_list]
+
+
+def test_session_reads_and_deletes_are_filtered_by_owner():
+    for action in (lambda r: r.get("s1"), lambda r: r.list_for_video("v1"), lambda r: r.delete("s1")):
+        client, chain = fake_client([{"id": "s1", "video_id": "v1"}])
+        action(SessionRepository(client, user_id="u1"))
+        assert ("user_id", "u1") in eq_calls(chain)
+
+
+def test_session_create_stamps_the_owner():
+    client, chain = fake_client([{"id": "s1"}])
+    SessionRepository(client, user_id="u1").create("v1", "T")
+    assert chain.insert.call_args.args[0] == {"video_id": "v1", "session_title": "T", "user_id": "u1"}
+
+
+def test_library_has_add_and_list_are_per_user():
+    client, chain = fake_client([{"video_id": "v1"}])
+    lib = LibraryRepository(client, user_id="u1")
+    assert lib.has("v1") is True
+    assert ("user_id", "u1") in eq_calls(chain) and ("video_id", "v1") in eq_calls(chain)
+    client.table.assert_called_with("user_videos")
+
+    client, chain = fake_client([])
+    LibraryRepository(client, user_id="u1").add("v1")
+    assert chain.upsert.call_args.args[0] == {"user_id": "u1", "video_id": "v1"}
+    assert chain.upsert.call_args.kwargs == {"on_conflict": "user_id,video_id", "ignore_duplicates": True}
+
+    client, chain = fake_client([{"created_at": "t", "video": {"id": "v1"}}, {"created_at": "t", "video": None}])
+    assert LibraryRepository(client, user_id="u1").list_videos() == [{"id": "v1"}]
+    assert ("user_id", "u1") in eq_calls(chain)
+
+
+def test_insights_use_the_per_user_table_and_owner():
+    client, chain = fake_client([])
+    repo = InsightsRepository(client, user_id="u1")
+    repo.get("v1")
+    assert ("user_id", "u1") in eq_calls(chain)
+    repo.mark_generating("v1")
+    repo.save_completed("v1", "S", ["T"], [], "m")
+    repo.save_failed("v1", "x")
+    assert {c.args[0] for c in client.table.call_args_list} == {"user_video_insights"}  # never video_insights
+    for call in chain.upsert.call_args_list:
+        assert call.args[0]["user_id"] == "u1" and call.kwargs == {"on_conflict": "user_id,video_id"}
 
 
 # ---------------------------------------------------------------- messages

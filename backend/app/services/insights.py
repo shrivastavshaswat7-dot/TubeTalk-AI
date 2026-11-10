@@ -2,7 +2,8 @@
 
 Short transcripts go to the model in one pass. Long ones use map-reduce: each ~10k-character
 section is condensed into notes (map), notes are merged until they fit (reduce), and a final call
-returns the JSON insights. Results are cached in Supabase (table video_insights).
+returns the JSON insights. Results are cached per user in Supabase (table user_video_insights, via
+an InsightsRepository bound to the signed-in user).
 """
 import json
 import re

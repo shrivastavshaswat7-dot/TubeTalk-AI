@@ -1,6 +1,11 @@
-"""All HTTP calls to the FastAPI backend live here. Nothing else in the frontend touches the network."""
+"""All HTTP calls to the FastAPI backend live here (sign-in itself talks to Supabase Auth, in auth.py).
+
+Every call carries the signed-in user's access token. A 401 means the session has ended: auth then
+signs the user out locally and returns to the landing page.
+"""
 import requests
 
+import auth
 from config import get_api_base_url
 
 # Seconds. Processing and first-time insights are synchronous on the backend and can take minutes.
@@ -33,13 +38,22 @@ def _error_from_response(resp: requests.Response) -> ApiError:
         return ApiError("HTTP_ERROR", resp.reason or "Unknown error", resp.status_code)
 
 
+def _auth_headers() -> dict:
+    token = auth.access_token()
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def _request(method: str, path: str, timeout: int = _T_DEFAULT, **kwargs) -> dict:
     try:
-        resp = requests.request(method, f"{get_api_base_url()}{path}", timeout=timeout, **kwargs)
+        resp = requests.request(
+            method, f"{get_api_base_url()}{path}", timeout=timeout, headers=_auth_headers(), **kwargs
+        )
     except requests.Timeout:
         raise ApiError("TIMEOUT", "This is taking longer than expected. Please try again.")
     except requests.RequestException:
         raise ApiError("BACKEND_UNREACHABLE", "Cannot reach the TubeTalk backend.")
+    if resp.status_code == 401:
+        auth.session_expired()  # signs out locally and reruns to the landing page
     if not resp.ok:
         raise _error_from_response(resp)
     try:

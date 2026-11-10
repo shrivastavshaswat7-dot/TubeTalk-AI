@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import deps
 from app.core.errors import AppError
 from app.main import app
 from app.prompts.rag import CLARIFY_MARKER, DEFAULT_CLARIFICATION, INSUFFICIENT_MARKER, build_user_message, format_history
@@ -14,7 +13,16 @@ from app.schemas.chunk import RetrievedChunk
 from app.services.chat import build_retrieval_query
 from app.services.embeddings import EMBEDDING_DIMENSION
 from app.services.rag import answer_question
-from tests.fakes import FakeChunkRepo, FakeInsightsRepo, FakeMessageRepo, FakeSessionRepo, FakeVideoRepo, new_id
+from tests.fakes import (
+    AUTH_A,
+    FakeChunkRepo,
+    FakeInsightsRepo,
+    FakeMessageRepo,
+    FakeSessionRepo,
+    FakeVideoRepo,
+    install_overrides,
+    new_id,
+)
 
 
 def u(text):
@@ -156,13 +164,10 @@ def env(monkeypatch):
     r = NS(videos=FakeVideoRepo(), sessions=FakeSessionRepo(), messages=FakeMessageRepo(),
            chunks=FakeChunkRepo(), insights=FakeInsightsRepo(), searches=[], answer_prompts=[],
            rewrite=lambda history_text, question: question, answer=lambda prompt: "Answer [C1].")
-    app.dependency_overrides[deps.get_video_repo] = lambda: r.videos
-    app.dependency_overrides[deps.get_session_repo] = lambda: r.sessions
-    app.dependency_overrides[deps.get_message_repo] = lambda: r.messages
-    app.dependency_overrides[deps.get_chunk_repo] = lambda: r.chunks
-    app.dependency_overrides[deps.get_insights_repo] = lambda: r.insights
+    install_overrides(app, r)
     r.vid = new_id()
     r.videos.rows[r.vid] = {"id": r.vid, "youtube_video_id": "abcdefghijk", "youtube_url": URL, "processing_status": "completed"}
+    r.library.add(r.vid)
     r.chunks.by_video[r.vid] = [{"id": "c0", "chunk_index": 0, "content": "Tom Cruise's mother example", "start_time": 0.0, "end_time": 40.0}]
     r.sid = r.sessions.create(r.vid)["id"]
 
@@ -179,7 +184,7 @@ def env(monkeypatch):
     app.dependency_overrides.clear()
 
 
-client = TestClient(app)
+client = TestClient(app, headers=AUTH_A)
 
 
 def ask(env, text, sid=None):

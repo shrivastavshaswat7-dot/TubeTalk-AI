@@ -5,14 +5,22 @@ from types import SimpleNamespace as NS
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import deps
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.main import app
 from app.prompts.insights import FINAL_SYSTEM_PROMPT
 from app.services.question_intent import OVERVIEW, POINTS, classify, route
 from app.services.summary_answer import build_summary_answer, chunk_at
-from tests.fakes import FakeChunkRepo, FakeInsightsRepo, FakeMessageRepo, FakeSessionRepo, FakeVideoRepo, new_id
+from tests.fakes import (
+    AUTH_A,
+    FakeChunkRepo,
+    FakeInsightsRepo,
+    FakeMessageRepo,
+    FakeSessionRepo,
+    FakeVideoRepo,
+    install_overrides,
+    new_id,
+)
 
 URL = "https://www.youtube.com/watch?v=abcdefghijk"
 
@@ -134,16 +142,12 @@ def test_no_valid_timestamps_still_answers_with_summary_source_only():
 def env(monkeypatch):
     r = NS(videos=FakeVideoRepo(), sessions=FakeSessionRepo(), messages=FakeMessageRepo(),
            chunks=FakeChunkRepo(), insights=FakeInsightsRepo(), llm_calls=[], retrieval_calls=[])
-    # Plain closures: a lambda with a default argument would be parsed by FastAPI as a query parameter.
-    app.dependency_overrides[deps.get_video_repo] = lambda: r.videos
-    app.dependency_overrides[deps.get_session_repo] = lambda: r.sessions
-    app.dependency_overrides[deps.get_message_repo] = lambda: r.messages
-    app.dependency_overrides[deps.get_chunk_repo] = lambda: r.chunks
-    app.dependency_overrides[deps.get_insights_repo] = lambda: r.insights
+    install_overrides(app, r)
 
     r.vid = new_id()
     r.videos.rows[r.vid] = {"id": r.vid, "youtube_video_id": "abcdefghijk", "youtube_url": URL,
                             "processing_status": "completed"}
+    r.library.add(r.vid)
     r.chunks.by_video[r.vid] = [dict(c) for c in CHUNKS]
     r.sid = r.sessions.create(r.vid)["id"]
 
@@ -161,7 +165,7 @@ def env(monkeypatch):
     app.dependency_overrides.clear()
 
 
-client = TestClient(app)
+client = TestClient(app, headers=AUTH_A)
 
 
 def ask(env, text):

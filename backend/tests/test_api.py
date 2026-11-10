@@ -5,14 +5,21 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import deps
 from app.core.errors import AppError
 from app.main import app
 from app.schemas.chunk import TranscriptChunk
 from app.schemas.transcript import Transcript, TranscriptSegment, VideoMetadata
 from app.services import chat as chat_service
 from app.services import ingestion
-from tests.fakes import FakeChunkRepo, FakeInsightsRepo, FakeMessageRepo, FakeSessionRepo, FakeVideoRepo
+from tests.fakes import (
+    AUTH_A,
+    FakeChunkRepo,
+    FakeInsightsRepo,
+    FakeMessageRepo,
+    FakeSessionRepo,
+    FakeVideoRepo,
+    install_overrides,
+)
 
 VID_A = "AAAAAAAAAAA"
 VID_B = "BBBBBBBBBBB"
@@ -24,11 +31,7 @@ URL_B = f"https://youtu.be/{VID_B}"
 def env(monkeypatch):
     repos = NS(videos=FakeVideoRepo(), sessions=FakeSessionRepo(), messages=FakeMessageRepo(),
                chunks=FakeChunkRepo(), insights=FakeInsightsRepo())
-    app.dependency_overrides[deps.get_video_repo] = lambda: repos.videos
-    app.dependency_overrides[deps.get_session_repo] = lambda: repos.sessions
-    app.dependency_overrides[deps.get_message_repo] = lambda: repos.messages
-    app.dependency_overrides[deps.get_chunk_repo] = lambda: repos.chunks
-    app.dependency_overrides[deps.get_insights_repo] = lambda: repos.insights
+    install_overrides(app, repos)
 
     calls = NS(metadata=0, transcript=0, llm=[])
     repos.calls = calls
@@ -63,7 +66,7 @@ def env(monkeypatch):
     app.dependency_overrides.clear()
 
 
-client = TestClient(app)
+client = TestClient(app, headers=AUTH_A)
 
 
 def process(url):

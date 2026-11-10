@@ -3,7 +3,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_chunk_repo, get_insights_repo, get_video_repo
+from app.api.deps import get_chunk_repo, get_insights_repo, get_video_repo, library_video_from_path
+from app.core.auth import get_current_user
 from app.db.repositories import ChunkRepository, InsightsRepository, VideoRepository
 from app.prompts.rag import format_timestamp
 from app.schemas.api import (
@@ -16,7 +17,12 @@ from app.schemas.api import (
 from app.services.insights import get_or_generate
 from app.services.suggestions import validated_suggestions
 
-router = APIRouter(prefix="/api/videos/{video_id}", tags=["insights"])
+# Every route here is for one video: signed in, and the video must be in the user's library.
+# Insights themselves are per user (InsightsRepository is bound to the signed-in user).
+router = APIRouter(
+    prefix="/api/videos/{video_id}", tags=["insights"],
+    dependencies=[Depends(get_current_user), Depends(library_video_from_path)],
+)
 
 
 def _topics(row: dict, youtube_url: str) -> list[dict]:
