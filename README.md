@@ -29,7 +29,7 @@ Groq. Full specifications are in [`docs/`](docs/).
 |---|---|
 | Frontend | Streamlit 1.66 (Streamlit Community Cloud) |
 | Backend | FastAPI, Pydantic, Uvicorn (Docker on Render) |
-| Transcripts | youtube-transcript-api |
+| Transcripts | [FreeTranscriptAPI](https://freetranscriptapi.com) (REST, via `requests`) |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2` (384-d), run locally with FastEmbed / ONNX Runtime |
 | Vector store and data | Supabase Postgres + pgvector (exact cosine search) |
 | LLM | Groq `openai/gpt-oss-20b` via LangChain |
@@ -41,7 +41,7 @@ Groq. Full specifications are in [`docs/`](docs/).
 Streamlit frontend ──HTTP──▶ FastAPI backend ──▶ Supabase Postgres + pgvector
  (player + chat)              │                    (videos, chunks + embeddings,
                               │                     chat sessions/messages, insights)
-                              ├─▶ youtube-transcript-api (transcripts)
+                              ├─▶ FreeTranscriptAPI (transcripts)
                               ├─▶ all-MiniLM-L6-v2 (local 384-d embeddings, FastEmbed / ONNX Runtime)
                               └─▶ Groq (openai/gpt-oss-20b via LangChain)
 ```
@@ -63,8 +63,9 @@ RAG flow for one question:
 
 ## Setup (Windows, PowerShell)
 
-Requirements: Python 3.12, a free [Supabase](https://supabase.com) project and a free
-[Groq](https://console.groq.com) API key.
+Requirements: Python 3.12, a free [Supabase](https://supabase.com) project, a free
+[Groq](https://console.groq.com) API key and a [FreeTranscriptAPI](https://freetranscriptapi.com)
+API key (signup includes free credits).
 
 Create a virtual environment (any location works) and install the dependencies:
 
@@ -92,6 +93,7 @@ Never commit real values: `backend/.env` and `.streamlit/secrets.toml` are git-i
 | `GROQ_MODEL` | backend | yes | Groq model name, e.g. `openai/gpt-oss-20b` |
 | `SUPABASE_URL` | backend | yes | Supabase project URL |
 | `SUPABASE_KEY` | backend | yes | Supabase **service-role** key (backend only, never the frontend) |
+| `FREE_TRANSCRIPT_API_KEY` | backend | yes, to process new videos | FreeTranscriptAPI key; without it, already processed videos still work |
 | `API_BASE_URL` | frontend | yes | Backend address, e.g. `http://localhost:8000` locally; without it the app shows a configuration error |
 | `ALLOWED_ORIGINS`, `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K`, `MIN_SIMILARITY`, `FULL_CONTEXT_MAX_TOKENS`, `GROQ_MAX_TOKENS`, `GROQ_REASONING_EFFORT`, `WARMUP_EMBEDDINGS` | backend | no | Tuning; defaults are in `.env.example` |
 
@@ -121,8 +123,8 @@ cd backend ; python -m pytest tests -q --ignore=tests/test_api_live.py --ignore=
 ```
 
 The offline suites mock every external service. The `*_live.py` backend tests use the real Groq
-API and write (temporary) rows to Supabase whenever `backend/.env` is configured, so they are
-excluded above; run them only on purpose.
+API and FreeTranscriptAPI (spending credits) and write (temporary) rows to Supabase whenever
+`backend/.env` is configured, so they are excluded above; run them only on purpose.
 
 ## Deployment (free tiers)
 
@@ -130,7 +132,8 @@ excluded above; run them only on purpose.
   whole API peaks around 300 MB, within Render's free 512 MB.
   1. New → Web Service → connect this GitHub repository; Language **Docker** (uses the root
      `Dockerfile`), instance type **Free**, health check path `/health`.
-  2. Add the environment variables `GROQ_API_KEY`, `GROQ_MODEL`, `SUPABASE_URL`, `SUPABASE_KEY`.
+  2. Add the environment variables `GROQ_API_KEY`, `GROQ_MODEL`, `SUPABASE_URL`, `SUPABASE_KEY`,
+     `FREE_TRANSCRIPT_API_KEY`.
   3. Deploy; `https://<service>.onrender.com/health` should return `healthy`.
 - **Frontend → Streamlit Community Cloud.** New app from this GitHub repository, main file
   `frontend/app.py`, Python 3.12, and the secret `API_BASE_URL = "https://<service>.onrender.com"`.
@@ -138,12 +141,11 @@ excluded above; run them only on purpose.
 
 ## Limitations
 
-- **New videos usually can't be processed on the hosted demo.** YouTube blocks transcript
-  requests from many cloud servers, including the Render backend used here, so processing a new
-  link there fails with a clear "YouTube didn't allow this server…" message. Videos that are
-  already processed work fully (chat, citations, Insights). Run the app locally to process new
-  videos: a local backend using the same Supabase database adds them, and they then appear in the
-  hosted app too.
+- **Transcripts come from a third-party service.** YouTube blocks transcript requests from many
+  cloud servers, so the backend uses FreeTranscriptAPI. Every lookup uses one credit, including
+  lookups for videos without captions; when the credits run out, new videos can't be processed
+  (already processed videos keep working). Failed lookups are not retried automatically.
+  Already-processed videos are reused and never fetched again.
 - **No login.** Anyone with the link can process videos and chat, which spends the Groq quota and
   adds rows to Supabase. Fine for a demo; add authentication before real public use.
 - **Groq free tier:** about 8,000 tokens per minute. Long transcripts sent whole (~25-minute

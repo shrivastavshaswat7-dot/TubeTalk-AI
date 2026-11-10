@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     groq_model: str = ""
     supabase_url: str = ""
     supabase_key: str = ""
+    free_transcript_api_key: str = ""  # FREE_TRANSCRIPT_API_KEY: transcripts via FreeTranscriptAPI
 
     allowed_origins: str = "http://localhost:8501"
 
