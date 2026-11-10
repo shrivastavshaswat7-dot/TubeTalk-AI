@@ -27,11 +27,14 @@ def show(error: str | None = None) -> None:
         st.error(error, icon=":material/error:")
 
     url = html.escape(auth.login_url(), quote=True)
+    # A new tab: on Streamlit Community Cloud the app runs in a sandboxed frame that may not navigate
+    # the whole page, and Google's sign-in page refuses to load inside a frame. The new tab comes back
+    # signed in (the PKCE verifier is kept on the server, not in this browser session).
     st.markdown(
-        f'<a class="tt-google" href="{url}" target="_self" rel="noopener">Continue with Google</a>',
+        f'<a class="tt-google" href="{url}" target="_blank" rel="noopener">Continue with Google</a>',
         unsafe_allow_html=True,
     )
-    st.caption("Sign in to get your own private library of videos and conversations.")
+    st.caption("Sign-in opens in a new tab. Sign in to get your own private library of videos and conversations.")
 
     st.write("")
     style.label("How it works")

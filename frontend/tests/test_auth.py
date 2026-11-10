@@ -125,6 +125,12 @@ def test_signed_out_visitors_see_the_landing_page_and_nothing_is_called(supabase
     assert not at.sidebar.button  # no conversations, videos or sign-out
 
 
+def test_sign_in_link_opens_a_new_tab(supabase, backend):
+    """Streamlit Cloud's sandboxed frame can't navigate the page, and Google won't load in a frame."""
+    page = "\n".join(str(m.value) for m in run().markdown)
+    assert re.search(r'class="tt-google" href="[^"]+" target="_blank" rel="noopener"', page)
+
+
 def test_sign_in_link_uses_pkce_and_a_one_time_state(supabase, backend):
     url = urlparse(google_link(run()))
     q = {k: v[0] for k, v in parse_qs(url.query).items()}
